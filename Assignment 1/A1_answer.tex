@@ -1,0 +1,757 @@
+\documentclass{article}
+\usepackage{fullpage}
+\usepackage[normalem]{ulem}
+\usepackage{amstext,amsmath,amssymb}
+\usepackage{pifont}
+\usepackage{xcolor}
+
+\newcommand{\var}[1]{\mathit{#1}}
+
+\setlength{\parskip}{6pt}
+
+\begin{document}
+
+~~~\vspace{-2.0cm}
+
+\noindent
+University of Toronto\\
+{\sc csc}343, Winter 2026\\[10pt]
+{\LARGE\bf Assignment 1: [Your Name and Student Number]}
+
+%----------------------------------------------------------------------------------------------------------------------
+\section*{Part 1: Queries}
+
+\begin{enumerate}
+\item   % ----------
+{Frugal doctors}
+
+{~}\\
+{\large
+-- All drugs (brand and generic) with recorded prices. \\[5pt]
+$
+\var{AllPricedDrugs}(\var{DIN}) := 
+	\Pi_{\var{DIN}} \var{Price} \\[10pt]
+$
+-- Brand-name drugs with at least one generic alternative. \\[5pt]
+$
+\var{BrandWithGeneric}(\var{DIN}) := 
+	\Pi_{\var{brand}} \var{Generic} \\[10pt]
+$
+-- Brand-name drugs with no generic alternative. \\[5pt]
+$
+\var{BrandWithoutGeneric}(\var{DIN}) := 
+	(\Pi_{\var{DIN}} \var{Product}) - \var{BrandWithGeneric} \\[10pt]
+$
+-- For each generic drug, get its brand and price. \\[5pt]
+$
+\var{GenericWithPrice}(\var{DIN}, \var{brand}, \var{price}) := 
+	\Pi_{\var{DIN}, \var{brand}, \var{price}} 
+	(\var{Generic} \bowtie \var{Price}) \\[10pt]
+$
+-- For each brand drug, find the minimum price among its generics. \\[5pt]
+$
+\var{BrandGenericPairs}(\var{brand}, \var{genericDIN}, \var{price}) := 
+	\var{GenericWithPrice} \\[10pt]
+$
+-- Find generics that cost more than some other generic of the same brand. \\[5pt]
+$
+\var{NotCheapestGeneric}(\var{DIN}) := \\[5pt]
+	\hspace*{1cm}
+	\Pi_{G1.\var{DIN}} 
+	\sigma_{
+		\substack{
+			G1.\var{brand} = G2.\var{brand} \\ \wedge \\
+			G1.\var{DIN} \neq G2.\var{DIN} \\ \wedge \\
+			G1.\var{price} > G2.\var{price}
+		}
+	}
+	[ (\rho_{G1}\var{BrandGenericPairs}) \times (\rho_{G2}\var{BrandGenericPairs}) ] \\[10pt]
+$
+-- Cheapest generic alternatives (tied for lowest price are all included). \\[5pt]
+$
+\var{CheapestGeneric}(\var{DIN}) := 
+	(\Pi_{\var{DIN}} \var{GenericWithPrice}) - \var{NotCheapestGeneric} \\[10pt]
+$
+-- Priced brand drugs without generic alternatives (acceptable to prescribe). \\[5pt]
+$
+\var{PricedBrandWithoutGeneric}(\var{DIN}) := 
+	\var{BrandWithoutGeneric} \cap \var{AllPricedDrugs} \\[10pt]
+$
+-- All acceptable drugs to prescribe (cheapest generics + brands without generics). \\[5pt]
+$
+\var{AcceptableDrugs}(\var{DIN}) := 
+	\var{CheapestGeneric} \cup \var{PricedBrandWithoutGeneric} \\[10pt]
+$
+-- Drugs prescribed that are not acceptable. \\[5pt]
+$
+\var{UnacceptablePrescriptions}(\var{doctor}, \var{drug}) := 
+	\Pi_{\var{doctor}, \var{drug}} 
+	\sigma_{\var{drug} \notin \var{AcceptableDrugs}}
+	\var{Prescription} \\[10pt]
+$
+-- Doctors who prescribed unacceptable drugs. \\[5pt]
+$
+\var{DoctorsWithBadPrescriptions}(\var{doctor}) := 
+	\Pi_{\var{doctor}} \var{UnacceptablePrescriptions} \\[10pt]
+$
+-- All doctors and the distinct drugs they prescribed. \\[5pt]
+$
+\var{DoctorDrugs}(\var{doctor}, \var{drug}) := 
+	\Pi_{\var{doctor}, \var{drug}} \var{Prescription} \\[10pt]
+$
+-- Doctors who prescribed fewer than 2 different drugs. \\[5pt]
+$
+\var{DoctorsWithOneOrNoDrugs}(\var{doctor}) := \\[5pt]
+	\hspace*{1cm}
+	(\Pi_{\var{doctor}} \var{DoctorDrugs}) - \\[5pt]
+	\hspace*{1cm}
+	\Pi_{D1.\var{doctor}} 
+	\sigma_{
+		\substack{
+			D1.\var{doctor} = D2.\var{doctor} \\ \wedge \\
+			D1.\var{drug} \neq D2.\var{drug}
+		}
+	}
+	[ (\rho_{D1}\var{DoctorDrugs}) \times (\rho_{D2}\var{DoctorDrugs}) ] \\[10pt]
+$
+-- All doctors who prescribed at least one priced drug. \\[5pt]
+$
+\var{AllEligibleDoctors}(\var{doctor}) := 
+	\Pi_{\var{doctor}} (\var{Prescription} \bowtie \var{AllPricedDrugs}) \\[10pt]
+$
+-- Frugal doctors (only acceptable prescriptions, at least 2 different drugs). \\[5pt]
+$
+\var{FrugalDoctors}(\var{doctor}) := 
+	\var{AllEligibleDoctors} - \var{DoctorsWithBadPrescriptions} - \var{DoctorsWithOneOrNoDrugs} \\[10pt]
+$
+}
+
+
+\item   % ----------
+{Potential doctor shopping}
+
+{~}\\
+{\large
+-- Get all brand-generic pairs (brand DIN, generic DIN). \\[5pt]
+$
+\var{BrandGenericPair}(\var{brandDIN}, \var{genericDIN}) := 
+	\Pi_{\var{brand}, \var{DIN}} \var{Generic} \\[10pt]
+$
+-- Create all equivalent drug pairs (DIN1, DIN2) where they are equivalent. \\[5pt]
+-- Case 1: Same DIN. \\[5pt]
+$
+\var{EquivSameDIN}(\var{DIN1}, \var{DIN2}) := 
+	\Pi_{\var{DIN} \rightarrow \var{DIN1}, \var{DIN} \rightarrow \var{DIN2}} 
+	(\var{Product} \cup (\Pi_{\var{DIN}} \var{Generic})) \\[10pt]
+$
+-- Case 2: Brand and its generic. \\[5pt]
+$
+\var{EquivBrandGeneric}(\var{DIN1}, \var{DIN2}) := 
+	\var{BrandGenericPair} \\[10pt]
+$
+-- Case 3: Generic and its brand (reverse). \\[5pt]
+$
+\var{EquivGenericBrand}(\var{DIN1}, \var{DIN2}) := 
+	\Pi_{\var{genericDIN} \rightarrow \var{DIN1}, \var{brandDIN} \rightarrow \var{DIN2}} 
+	\var{BrandGenericPair} \\[10pt]
+$
+-- Case 4: Two generics sharing the same brand. \\[5pt]
+$
+\var{EquivTwoGenerics}(\var{DIN1}, \var{DIN2}) := \\[5pt]
+	\hspace*{1cm}
+	\Pi_{G1.\var{DIN} \rightarrow \var{DIN1}, G2.\var{DIN} \rightarrow \var{DIN2}} \\[5pt]
+	\hspace*{1cm}
+	\sigma_{
+		\substack{
+			G1.\var{brand} = G2.\var{brand} \\ \wedge \\
+			G1.\var{DIN} \neq G2.\var{DIN}
+		}
+	}
+	[ (\rho_{G1}\var{Generic}) \times (\rho_{G2}\var{Generic}) ] \\[10pt]
+$
+-- All equivalent drug pairs. \\[5pt]
+$
+\var{EquivalentDrugs}(\var{DIN1}, \var{DIN2}) := 
+	\var{EquivSameDIN} \cup \var{EquivBrandGeneric} \cup 
+	\var{EquivGenericBrand} \cup \var{EquivTwoGenerics} \\[10pt]
+$
+-- Patients prescribed equivalent medications by different doctors. \\[5pt]
+$
+\var{PatientsDoctorShopping}(\var{patient}) := \\[5pt]
+	\hspace*{1cm}
+	\Pi_{P1.\var{patient}} \\[5pt]
+	\hspace*{1cm}
+	\sigma_{
+		\substack{
+			P1.\var{patient} = P2.\var{patient} \\ \wedge \\
+			P1.\var{doctor} \neq P2.\var{doctor} \\ \wedge \\
+			P1.\var{drug} = E.\var{DIN1} \\ \wedge \\
+			P2.\var{drug} = E.\var{DIN2}
+		}
+	}
+	[ (\rho_{P1}\var{Prescription}) \times (\rho_{P2}\var{Prescription}) \times (\rho_{E}\var{EquivalentDrugs}) ] \\[10pt]
+$
+-- Report OHIP, name, and phone for these patients. \\[5pt]
+$
+\var{Result}(\var{OHIP}, \var{name}, \var{phone}) := 
+	\Pi_{\var{OHIP}, \var{name}, \var{phone}} 
+	(\var{Patient} \bowtie_{\var{OHIP} = \var{patient}} \var{PatientsDoctorShopping}) \\[10pt]
+$
+}
+
+
+\item   % ----------
+{Safest ingredient}
+
+{~}\\
+{\large
+-- All ingredient pairs that interact (both directions). \\[5pt]
+$
+\var{AllInteractions}(\var{ing1}, \var{ing2}) := 
+	\var{Interaction} \cup 
+	\Pi_{\var{ingredient2} \rightarrow \var{ing1}, \var{ingredient1} \rightarrow \var{ing2}} \var{Interaction} \\[10pt]
+$
+-- Count interactions per ingredient (ingredients with at least one interaction). \\[5pt]
+$
+\var{IngredientInteractions}(\var{ingredient}, \var{interactsWith}) := 
+	\var{AllInteractions} \\[10pt]
+$
+-- Ingredients that have more interactions than some other ingredient. \\[5pt]
+$
+\var{NotMinInteractions}(\var{ingredient}) := \\[5pt]
+	\hspace*{1cm}
+	\Pi_{I1.\var{ingredient}} \\[5pt]
+	\hspace*{1cm}
+	\sigma_{
+		\substack{
+			I1.\var{ingredient} \neq I2.\var{ingredient} \\ \wedge \\
+			I1.\var{interactsWith} = I2.\var{interactsWith}
+		}
+	}
+	[ (\rho_{I1}\var{IngredientInteractions}) \times (\rho_{I2}\var{IngredientInteractions}) ] \\[10pt]
+$
+-- Wait, we need to count. Let me reconsider this. \\[5pt]
+-- Ingredients that interact with more ingredients than another. \\[5pt]
+$
+\var{InteractsWithMore}(\var{ingredient}) := \\[5pt]
+	\hspace*{1cm}
+	\Pi_{I1.\var{ing1}} \\[5pt]
+	\hspace*{1cm}
+	\sigma_{
+		\substack{
+			I1.\var{ing1} \neq I2.\var{ing1} \\ \wedge \\
+			I1.\var{ing1} = I3.\var{ing1} \\ \wedge \\
+			I2.\var{ing1} = I4.\var{ing1} \\ \wedge \\
+			I3.\var{ing2} \neq I4.\var{ing2}
+		}
+	}
+	[ (\rho_{I1}\var{AllInteractions}) \times (\rho_{I2}\var{AllInteractions}) \times 
+	  (\rho_{I3}\var{AllInteractions}) \times (\rho_{I4}\var{AllInteractions}) ] \\[10pt]
+$
+-- Actually, this is getting too complex. Let me use a different approach. \\[5pt]
+-- For each ingredient pair, check if ing1 has an interaction that ing2 doesn't have. \\[5pt]
+$
+\var{HasMoreInteractions}(\var{ing1}) := \\[5pt]
+	\hspace*{1cm}
+	\Pi_{A1.\var{ing1}} \\[5pt]
+	\hspace*{1cm}
+	\sigma_{
+		\substack{
+			A1.\var{ing1} \neq A2.\var{ing1} \\ \wedge \\
+			A1.\var{ing2} = A3.\var{ing2} \\ \wedge \\
+			A3.\var{ing1} \neq A2.\var{ing1}
+		}
+	}
+	\Bigg[ 
+		(\rho_{A1}\var{AllInteractions}) \times 
+		(\rho_{A2}(\Pi_{\var{name} \rightarrow \var{ing1}} \var{ActiveIngredient})) \times
+		(\rho_{A3}\var{AllInteractions})
+	\Bigg] - \\[5pt]
+	\hspace*{1cm}
+	\Pi_{A1.\var{ing1}} \\[5pt]
+	\hspace*{1cm}
+	\sigma_{
+		\substack{
+			A1.\var{ing1} \neq A2.\var{ing1} \\ \wedge \\
+			A1.\var{ing2} = A4.\var{ing2} \\ \wedge \\
+			A4.\var{ing1} = A2.\var{ing1}
+		}
+	}
+	\Bigg[ 
+		(\rho_{A1}\var{AllInteractions}) \times 
+		(\rho_{A2}(\Pi_{\var{name} \rightarrow \var{ing1}} \var{ActiveIngredient})) \times
+		(\rho_{A4}\var{AllInteractions})
+	\Bigg] \\[10pt]
+$
+-- Ingredients with fewest interactions. \\[5pt]
+$
+\var{SafestIngredient}(\var{name}) := 
+	(\Pi_{\var{name}} \var{ActiveIngredient}) - \var{HasMoreInteractions} \\[10pt]
+$
+}
+
+
+\item   % ----------
+{Drug shortage}
+
+{~}\\
+{\large
+-- All unfilled prescriptions (prescriptions not in Filled). \\[5pt]
+$
+\var{UnfilledPrescriptions}(\var{RxID}, \var{drug}, \var{patient}) := 
+	\Pi_{\var{RxID}, \var{drug}, \var{patient}} 
+	\Big( \var{Prescription} - 
+	\Pi_{\var{RxID}, \var{drug}, \var{patient}} 
+	(\var{Prescription} \bowtie \var{Filled}) \Big) \\[10pt]
+$
+-- Drugs with at least 3 unfilled prescriptions. \\[5pt]
+$
+\var{DrugsWithManyUnfilled}(\var{drug}) := \\[5pt]
+	\hspace*{1cm}
+	\Pi_{U1.\var{drug}} \\[5pt]
+	\hspace*{1cm}
+	\sigma_{
+		\substack{
+			U1.\var{drug} = U2.\var{drug} \\ \wedge \\
+			U1.\var{drug} = U3.\var{drug} \\ \wedge \\
+			U1.\var{RxID} \neq U2.\var{RxID} \\ \wedge \\
+			U1.\var{RxID} \neq U3.\var{RxID} \\ \wedge \\
+			U2.\var{RxID} \neq U3.\var{RxID}
+		}
+	}
+	\Big[ (\rho_{U1}\var{UnfilledPrescriptions}) \times 
+	      (\rho_{U2}\var{UnfilledPrescriptions}) \times 
+	      (\rho_{U3}\var{UnfilledPrescriptions}) \Big] \\[10pt]
+$
+-- Drugs with unfilled prescriptions from at least 2 different patients. \\[5pt]
+$
+\var{DrugsMultiplePatients}(\var{drug}) := \\[5pt]
+	\hspace*{1cm}
+	\Pi_{U1.\var{drug}} \\[5pt]
+	\hspace*{1cm}
+	\sigma_{
+		\substack{
+			U1.\var{drug} = U2.\var{drug} \\ \wedge \\
+			U1.\var{patient} \neq U2.\var{patient}
+		}
+	}
+	\Big[ (\rho_{U1}\var{UnfilledPrescriptions}) \times 
+	      (\rho_{U2}\var{UnfilledPrescriptions}) \Big] \\[10pt]
+$
+-- Drugs in shortage (both conditions satisfied). \\[5pt]
+$
+\var{DrugShortage}(\var{drug}) := 
+	\var{DrugsWithManyUnfilled} \cap \var{DrugsMultiplePatients} \\[10pt]
+$
+-- Get manufacturer for brand-name drugs. \\[5pt]
+$
+\var{BrandDrugInfo}(\var{DIN}, \var{manufacturer}) := 
+	\Pi_{\var{DIN}, \var{manufacturer}} \var{Product} \\[10pt]
+$
+-- Get manufacturer for generic drugs. \\[5pt]
+$
+\var{GenericDrugInfo}(\var{DIN}, \var{manufacturer}) := 
+	\Pi_{\var{DIN}, \var{manufacturer}} \var{Generic} \\[10pt]
+$
+-- All drugs with their manufacturers. \\[5pt]
+$
+\var{AllDrugInfo}(\var{DIN}, \var{manufacturer}) := 
+	\var{BrandDrugInfo} \cup \var{GenericDrugInfo} \\[10pt]
+$
+-- Report DIN and manufacturer for drugs in shortage. \\[5pt]
+$
+\var{Result}(\var{DIN}, \var{manufacturer}) := 
+	\Pi_{\var{DIN}, \var{manufacturer}} 
+	(\var{AllDrugInfo} \bowtie_{\var{DIN} = \var{drug}} \var{DrugShortage}) \\[10pt]
+$
+}
+
+
+\item   % ----------
+{Protecting drug patents}
+
+{~}\\
+{\large
+-- All ingredients contained in each brand-name drug (DIN, ingredient). \\[5pt]
+$
+\var{BrandIngredients}(\var{DIN}, \var{ingredient}) := 
+	\Pi_{\var{DIN}, \var{ingredient}} \var{Contains} \\[10pt]
+$
+-- Find brand-name drugs where one has an ingredient the other doesn't. \\[5pt]
+$
+\var{DifferentIngredients}(\var{DIN1}, \var{DIN2}) := \\[5pt]
+	\hspace*{1cm}
+	\Pi_{B1.\var{DIN} \rightarrow \var{DIN1}, B2.\var{DIN} \rightarrow \var{DIN2}} \\[5pt]
+	\hspace*{1cm}
+	\sigma_{
+		\substack{
+			B1.\var{DIN} < B2.\var{DIN} \\ \wedge \\
+			B1.\var{ingredient} = B3.\var{ingredient} \\ \wedge \\
+			B3.\var{ingredient} \neq B4.\var{ingredient} \\ \wedge \\
+			B3.\var{DIN} = B1.\var{DIN} \\ \wedge \\
+			B4.\var{DIN} = B2.\var{DIN}
+		}
+	}
+	\Bigg[ 
+		(\rho_{B1}\var{BrandIngredients}) \times 
+		(\rho_{B2}\var{BrandIngredients}) \times
+		(\rho_{B3}\var{BrandIngredients}) \times
+		(\rho_{B4}(\Pi_{\var{DIN}, \var{ingredient}} \var{Contains}))
+	\Bigg] \\[10pt]
+$
+-- Actually, let me use a simpler approach. \\[5pt]
+-- Pairs of brand drugs where first has ingredient second doesn't have. \\[5pt]
+$
+\var{HasExtraIngredient}(\var{DIN1}, \var{DIN2}) := \\[5pt]
+	\hspace*{1cm}
+	\Pi_{C1.\var{DIN} \rightarrow \var{DIN1}, P.\var{DIN} \rightarrow \var{DIN2}} \\[5pt]
+	\hspace*{1cm}
+	\Big(
+		\sigma_{C1.\var{DIN} \neq P.\var{DIN}}
+		[ (\rho_{C1}\var{Contains}) \times \var{Product} ]
+	\Big) - \\[5pt]
+	\hspace*{1cm}
+	\Pi_{C1.\var{DIN} \rightarrow \var{DIN1}, C2.\var{DIN} \rightarrow \var{DIN2}} \\[5pt]
+	\hspace*{1cm}
+	\sigma_{
+		\substack{
+			C1.\var{DIN} \neq C2.\var{DIN} \\ \wedge \\
+			C1.\var{ingredient} = C2.\var{ingredient}
+		}
+	}
+	\Big[ (\rho_{C1}\var{Contains}) \times (\rho_{C2}\var{Contains}) \Big] \\[10pt]
+$
+-- All pairs of brand drugs. \\[5pt]
+$
+\var{AllBrandPairs}(\var{DIN1}, \var{DIN2}) := \\[5pt]
+	\hspace*{1cm}
+	\Pi_{P1.\var{DIN} \rightarrow \var{DIN1}, P2.\var{DIN} \rightarrow \var{DIN2}} 
+	\sigma_{P1.\var{DIN} < P2.\var{DIN}}
+	\Big[ (\rho_{P1}\var{Product}) \times (\rho_{P2}\var{Product}) \Big] \\[10pt]
+$
+-- Pairs with same ingredients (no extras either way). \\[5pt]
+$
+\var{SameIngredients}(\var{DIN1}, \var{DIN2}) := 
+	\var{AllBrandPairs} - \var{HasExtraIngredient} - \\[5pt]
+	\hspace*{1cm}
+	\Pi_{\var{DIN2} \rightarrow \var{DIN1}, \var{DIN1} \rightarrow \var{DIN2}} 
+	\var{HasExtraIngredient} \\[10pt]
+$
+-- Get name for first drug. \\[5pt]
+$
+\var{WithFirstName}(\var{DIN1}, \var{DIN2}, \var{name1}) := 
+	\Pi_{\var{DIN1}, \var{DIN2}, \var{name} \rightarrow \var{name1}} 
+	(\var{SameIngredients} \bowtie_{\var{DIN1} = \var{DIN}} \var{Product}) \\[10pt]
+$
+-- Get name for second drug. \\[5pt]
+$
+\var{Result}(\var{DIN1}, \var{name1}, \var{DIN2}, \var{name2}) := 
+	\Pi_{\var{DIN1}, \var{name1}, \var{DIN2}, \var{name} \rightarrow \var{name2}} 
+	(\var{WithFirstName} \bowtie_{\var{DIN2} = \var{DIN}} \var{Product}) \\[10pt]
+$
+}
+
+
+\item   % ----------
+{Patients at risk}
+
+{~}\\
+{\large
+-- Get all ingredients for each drug (both brand and generic). \\[5pt]
+$
+\var{BrandDrugIngredients}(\var{DIN}, \var{ingredient}) := 
+	\Pi_{\var{DIN}, \var{ingredient}} \var{Contains} \\[10pt]
+$
+-- For generic drugs, get ingredients from their brand equivalent. \\[5pt]
+$
+\var{GenericDrugIngredients}(\var{DIN}, \var{ingredient}) := 
+	\Pi_{G.\var{DIN}, C.\var{ingredient}} 
+	(\var{Generic} \bowtie_{G.\var{brand} = C.\var{DIN}} (\rho_{G}\var{Generic} \times \rho_{C}\var{Contains})) \\[10pt]
+$
+-- Actually, let me fix this join. \\[5pt]
+$
+\var{GenericWithBrandIngredients}(\var{genericDIN}, \var{ingredient}) := 
+	\Pi_{\var{DIN} \rightarrow \var{genericDIN}, \var{ingredient}} 
+	(\var{Generic} \bowtie_{\var{brand} = \var{DIN}} \var{Contains}) \\[10pt]
+$
+-- All drugs with their ingredients. \\[5pt]
+$
+\var{AllDrugIngredients}(\var{DIN}, \var{ingredient}) := 
+	\var{BrandDrugIngredients} \cup \var{GenericWithBrandIngredients} \\[10pt]
+$
+-- Prescriptions on the same day by same doctor to same patient. \\[5pt]
+$
+\var{SameDayPrescriptions}(\var{doctor}, \var{patient}, \var{date}, \var{drug1}, \var{drug2}) := \\[5pt]
+	\hspace*{1cm}
+	\Pi_{
+		\substack{
+			P1.\var{doctor}, P1.\var{patient}, P1.\var{date}, \\
+			P1.\var{drug} \rightarrow \var{drug1}, P2.\var{drug} \rightarrow \var{drug2}
+		}
+	} \\[5pt]
+	\hspace*{1cm}
+	\sigma_{
+		\substack{
+			P1.\var{doctor} = P2.\var{doctor} \\ \wedge \\
+			P1.\var{patient} = P2.\var{patient} \\ \wedge \\
+			P1.\var{date} = P2.\var{date} \\ \wedge \\
+			P1.\var{drug} \neq P2.\var{drug}
+		}
+	}
+	\Big[ (\rho_{P1}\var{Prescription}) \times (\rho_{P2}\var{Prescription}) \Big] \\[10pt]
+$
+-- Add ingredients for both drugs. \\[5pt]
+$
+\var{WithIngredients}(\var{doctor}, \var{patient}, \var{date}, \var{ing1}, \var{ing2}) := \\[5pt]
+	\hspace*{1cm}
+	\Pi_{\var{doctor}, \var{patient}, \var{date}, D1.\var{ingredient} \rightarrow \var{ing1}, D2.\var{ingredient} \rightarrow \var{ing2}} \\[5pt]
+	\hspace*{1cm}
+	\Big(
+		\var{SameDayPrescriptions} \bowtie_{\var{drug1} = D1.\var{DIN}} (\rho_{D1}\var{AllDrugIngredients})
+		\bowtie_{\var{drug2} = D2.\var{DIN}} (\rho_{D2}\var{AllDrugIngredients})
+	\Big) \\[10pt]
+$
+-- All interactions (both directions). \\[5pt]
+$
+\var{AllInteractions}(\var{ing1}, \var{ing2}) := 
+	(\Pi_{\var{ingredient1} \rightarrow \var{ing1}, \var{ingredient2} \rightarrow \var{ing2}} \var{Interaction}) \cup
+	(\Pi_{\var{ingredient2} \rightarrow \var{ing1}, \var{ingredient1} \rightarrow \var{ing2}} \var{Interaction}) \\[10pt]
+$
+-- Doctors who prescribed interacting drugs on same day. \\[5pt]
+$
+\var{Result}(\var{doctor}, \var{date}) := 
+	\Pi_{\var{doctor}, \var{date}} 
+	(\var{WithIngredients} \bowtie \var{AllInteractions}) \\[10pt]
+$
+}
+
+
+\item   % ----------
+{Many generics}
+
+{~}\\
+{\large
+-- All generic drug DINs. \\[5pt]
+$
+\var{GenericDINs}(\var{DIN}) := 
+	\Pi_{\var{DIN}} \var{Generic} \\[10pt]
+$
+-- Prescriptions filled for generic drugs. \\[5pt]
+$
+\var{GenericFilled}(\var{pharmacist}) := 
+	\Pi_{\var{pharmacist}} 
+	(\var{Filled} \bowtie_{\var{RxID} = \var{RxID}} 
+	(\var{Prescription} \bowtie_{\var{drug} = \var{DIN}} \var{GenericDINs})) \\[10pt]
+$
+-- Count: pharmacists who filled fewer generics than another pharmacist. \\[5pt]
+$
+\var{NotMaxGenerics}(\var{pharmacist}) := \\[5pt]
+	\hspace*{1cm}
+	\Pi_{F1.\var{pharmacist}} \\[5pt]
+	\hspace*{1cm}
+	\sigma_{
+		\substack{
+			F1.\var{pharmacist} \neq F2.\var{pharmacist} \\ \wedge \\
+			F1.\var{RxID} = F3.\var{RxID} \\ \wedge \\
+			F2.\var{RxID} = F4.\var{RxID} \\ \wedge \\
+			F3.\var{RxID} \neq F4.\var{RxID}
+		}
+	}
+	\Bigg[ 
+		(\rho_{F1}\var{Filled}) \times (\rho_{F2}\var{Filled}) \times 
+		(\rho_{F3}(\var{Filled} \bowtie (\var{Prescription} \bowtie \var{GenericDINs}))) \times
+		(\rho_{F4}(\var{Filled} \bowtie (\var{Prescription} \bowtie \var{GenericDINs})))
+	\Bigg] - \\[5pt]
+	\hspace*{1cm}
+	\Pi_{F1.\var{pharmacist}} \\[5pt]
+	\hspace*{1cm}
+	\sigma_{
+		\substack{
+			F1.\var{pharmacist} \neq F2.\var{pharmacist} \\ \wedge \\
+			F1.\var{RxID} = F5.\var{RxID} \\ \wedge \\
+			F2.\var{RxID} = F6.\var{RxID} \\ \wedge \\
+			F5.\var{RxID} = F6.\var{RxID}
+		}
+	}
+	\Bigg[ 
+		(\rho_{F1}\var{Filled}) \times (\rho_{F2}\var{Filled}) \times 
+		(\rho_{F5}(\var{Filled} \bowtie (\var{Prescription} \bowtie \var{GenericDINs}))) \times
+		(\rho_{F6}(\var{Filled} \bowtie (\var{Prescription} \bowtie \var{GenericDINs})))
+	\Bigg] \\[10pt]
+$
+-- This is getting too complicated. Let me simplify by counting filled prescriptions. \\[5pt]
+-- Pharmacists with most generic fills. \\[5pt]
+$
+\var{TopPharmacists}(\var{pharmacist}) := 
+	(\Pi_{\var{pharmacist}} \var{GenericFilled}) - \var{NotMaxGenerics} \\[10pt]
+$
+-- Get the last filled date for each top pharmacist. \\[5pt]
+$
+\var{PharmacistFilledDates}(\var{pharmacist}, \var{date}) := 
+	\Pi_{\var{pharmacist}, \var{date}} \var{Filled} \\[10pt]
+$
+-- For each pharmacist, find dates that are not the latest. \\[5pt]
+$
+\var{NotLastDate}(\var{pharmacist}, \var{date}) := \\[5pt]
+	\hspace*{1cm}
+	\Pi_{D1.\var{pharmacist}, D1.\var{date}} \\[5pt]
+	\hspace*{1cm}
+	\sigma_{
+		\substack{
+			D1.\var{pharmacist} = D2.\var{pharmacist} \\ \wedge \\
+			D1.\var{date} < D2.\var{date}
+		}
+	}
+	\Big[ (\rho_{D1}\var{PharmacistFilledDates}) \times (\rho_{D2}\var{PharmacistFilledDates}) \Big] \\[10pt]
+$
+-- Last filled date for each pharmacist. \\[5pt]
+$
+\var{LastFilledDate}(\var{pharmacist}, \var{date}) := 
+	\var{PharmacistFilledDates} - \var{NotLastDate} \\[10pt]
+$
+-- Result: OCP and last filled date for top pharmacists. \\[5pt]
+$
+\var{Result}(\var{OCP}, \var{lastDate}) := 
+	\Pi_{\var{pharmacist} \rightarrow \var{OCP}, \var{date} \rightarrow \var{lastDate}} 
+	(\var{TopPharmacists} \bowtie \var{LastFilledDate}) \\[10pt]
+$
+}
+
+
+\item   % ----------
+{Lots of competition}
+
+{~}\\
+{\large
+-- Manufacturers who make at least one brand-name drug. \\[5pt]
+$
+\var{BrandManufacturers}(\var{manufacturer}) := 
+	\Pi_{\var{manufacturer}} \var{Product} \\[10pt]
+$
+-- For each brand drug, get its manufacturer. \\[5pt]
+$
+\var{BrandWithMfr}(\var{DIN}, \var{manufacturer}) := 
+	\Pi_{\var{DIN}, \var{manufacturer}} \var{Product} \\[10pt]
+$
+-- Brand drugs that have at least one generic alternative. \\[5pt]
+$
+\var{BrandsWithGenerics}(\var{brandDIN}) := 
+	\Pi_{\var{brand} \rightarrow \var{brandDIN}} \var{Generic} \\[10pt]
+$
+-- Manufacturers who make a brand drug without a generic. \\[5pt]
+$
+\var{MfrWithoutAllGenerics}(\var{manufacturer}) := 
+	\Pi_{\var{manufacturer}} 
+	(\var{BrandWithMfr} \bowtie_{\var{DIN} \notin \var{BrandsWithGenerics}} 
+	(\Pi_{\var{DIN}} \var{Product} - \var{BrandsWithGenerics})) \\[10pt]
+$
+-- Actually, let me reconsider. We need manufacturers where: \\[5pt]
+-- (1) They make brand drugs. \\[5pt]
+-- (2) For each of their brand drugs, they make a generic. \\[5pt]
+-- (3) For each of their brand drugs, another company also makes a generic. \\[5pt]
+-- Brand drugs made by each manufacturer. \\[5pt]
+$
+\var{MfrBrandDrugs}(\var{manufacturer}, \var{brandDIN}) := 
+	\Pi_{\var{manufacturer}, \var{DIN} \rightarrow \var{brandDIN}} \var{Product} \\[10pt]
+$
+-- Generic drugs with their brand and manufacturer. \\[5pt]
+$
+\var{GenericInfo}(\var{brand}, \var{genericMfr}) := 
+	\Pi_{\var{brand}, \var{manufacturer} \rightarrow \var{genericMfr}} \var{Generic} \\[10pt]
+$
+-- Manufacturers whose brand drug doesn't have a generic by themselves. \\[5pt]
+$
+\var{MfrBrandNoSelfGeneric}(\var{manufacturer}, \var{brandDIN}) := 
+	\var{MfrBrandDrugs} - \\[5pt]
+	\hspace*{1cm}
+	\Pi_{\var{manufacturer}, \var{brandDIN}} 
+	\sigma_{M.\var{manufacturer} = G.\var{genericMfr} \wedge M.\var{brandDIN} = G.\var{brand}}
+	\Big[ (\rho_{M}\var{MfrBrandDrugs}) \times (\rho_{G}\var{GenericInfo}) \Big] \\[10pt]
+$
+-- Manufacturers who have at least one brand without self-generic. \\[5pt]
+$
+\var{FailCondition2}(\var{manufacturer}) := 
+	\Pi_{\var{manufacturer}} \var{MfrBrandNoSelfGeneric} \\[10pt]
+$
+-- Manufacturers whose brand drug doesn't have a generic by another company. \\[5pt]
+$
+\var{MfrBrandNoOtherGeneric}(\var{manufacturer}, \var{brandDIN}) := 
+	\var{MfrBrandDrugs} - \\[5pt]
+	\hspace*{1cm}
+	\Pi_{\var{manufacturer}, \var{brandDIN}} 
+	\sigma_{M.\var{manufacturer} \neq G.\var{genericMfr} \wedge M.\var{brandDIN} = G.\var{brand}}
+	\Big[ (\rho_{M}\var{MfrBrandDrugs}) \times (\rho_{G}\var{GenericInfo}) \Big] \\[10pt]
+$
+-- Manufacturers who have at least one brand without other-company-generic. \\[5pt]
+$
+\var{FailCondition3}(\var{manufacturer}) := 
+	\Pi_{\var{manufacturer}} \var{MfrBrandNoOtherGeneric} \\[10pt]
+$
+-- Result: manufacturers satisfying all conditions. \\[5pt]
+$
+\var{Result}(\var{manufacturer}) := 
+	\var{BrandManufacturers} - \var{FailCondition2} - \var{FailCondition3} \\[10pt]
+$
+}
+
+\end{enumerate}
+
+
+%----------------------------------------------------------------------------------------------------------------------
+\section*{Part 2: Additional Integrity Constraints}
+
+\begin{enumerate}
+
+\item   % ----------
+{Symmetry}
+
+{~}\\
+{\large
+-- If (A, B) is in Interaction, then (B, A) must also be in Interaction. \\[5pt]
+-- Violation: (A, B) exists but (B, A) doesn't exist. \\[5pt]
+$
+\sigma_{
+	\substack{
+		I1.\var{ingredient1} = I2.\var{ingredient2} \\ \wedge \\
+		I1.\var{ingredient2} = I2.\var{ingredient1}
+	}
+}
+\Big[
+	\var{Interaction} \times (\rho_{I2}\var{Interaction})
+\Big] = \emptyset
+$
+-- Wait, that's wrong. Let me reconsider. \\[5pt]
+-- Correct formulation: \\[5pt]
+$
+\Pi_{\var{ingredient2} \rightarrow \var{ing1}, \var{ingredient1} \rightarrow \var{ing2}} 
+\var{Interaction} - \var{Interaction} = \emptyset
+$
+}
+
+
+\item   % ----------
+{Don't surpass those with seniority}
+
+{~}\\
+{\large
+\textbf{Cannot be expressed.}
+
+\vspace{5pt}
+This constraint requires counting the number of prescriptions filled by each pharmacist in each year and comparing these counts between pharmacists based on their registration dates. Relational algebra cannot perform aggregation operations like counting, so this constraint cannot be expressed using only the allowed operations.
+}
+
+
+\item   % ----------
+{Brand-name first}
+
+{~}\\
+{\large
+\textbf{Cannot be expressed.}
+
+\vspace{5pt}
+This constraint requires checking that for every prescription of a generic drug, there exists an earlier prescription for its brand equivalent by the same doctor. The phrase "already written" implies a temporal precedence check across all prescriptions for that doctor. While we can check if both prescriptions exist, we cannot ensure that the brand prescription came first for all cases without using universal quantification or negation in ways that would require checking the absence of violations across all possible generic prescriptions, which goes beyond the expressive power of relational algebra with the given operators.
+}
+
+\end{enumerate}
+
+\end{document}
