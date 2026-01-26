@@ -26,7 +26,7 @@ University of Toronto\\
 {Frugal doctors}
 
 {~}\\
-{\large
+{\small
 -- All drugs (brand and generic) with recorded prices. \\[5pt]
 $
 \var{AllPricedDrugs}(\var{DIN}) := 
@@ -131,7 +131,7 @@ $
 {Potential doctor shopping}
 
 {~}\\
-{\large
+{\small
 -- Get all brand-generic pairs (brand DIN, generic DIN). \\[5pt]
 $
 \var{BrandGenericPair}(\var{brandDIN}, \var{genericDIN}) := 
@@ -204,51 +204,13 @@ $
 {Safest ingredient}
 
 {~}\\
-{\large
+{\small
 -- All ingredient pairs that interact (both directions). \\[5pt]
 $
 \var{AllInteractions}(\var{ing1}, \var{ing2}) := 
 	\var{Interaction} \cup 
 	\Pi_{\var{ingredient2} \rightarrow \var{ing1}, \var{ingredient1} \rightarrow \var{ing2}} \var{Interaction} \\[10pt]
 $
--- Count interactions per ingredient (ingredients with at least one interaction). \\[5pt]
-$
-\var{IngredientInteractions}(\var{ingredient}, \var{interactsWith}) := 
-	\var{AllInteractions} \\[10pt]
-$
--- Ingredients that have more interactions than some other ingredient. \\[5pt]
-$
-\var{NotMinInteractions}(\var{ingredient}) := \\[5pt]
-	\hspace*{1cm}
-	\Pi_{I1.\var{ingredient}} \\[5pt]
-	\hspace*{1cm}
-	\sigma_{
-		\substack{
-			I1.\var{ingredient} \neq I2.\var{ingredient} \\ \wedge \\
-			I1.\var{interactsWith} = I2.\var{interactsWith}
-		}
-	}
-	[ (\rho_{I1}\var{IngredientInteractions}) \times (\rho_{I2}\var{IngredientInteractions}) ] \\[10pt]
-$
--- Wait, we need to count. Let me reconsider this. \\[5pt]
--- Ingredients that interact with more ingredients than another. \\[5pt]
-$
-\var{InteractsWithMore}(\var{ingredient}) := \\[5pt]
-	\hspace*{1cm}
-	\Pi_{I1.\var{ing1}} \\[5pt]
-	\hspace*{1cm}
-	\sigma_{
-		\substack{
-			I1.\var{ing1} \neq I2.\var{ing1} \\ \wedge \\
-			I1.\var{ing1} = I3.\var{ing1} \\ \wedge \\
-			I2.\var{ing1} = I4.\var{ing1} \\ \wedge \\
-			I3.\var{ing2} \neq I4.\var{ing2}
-		}
-	}
-	[ (\rho_{I1}\var{AllInteractions}) \times (\rho_{I2}\var{AllInteractions}) \times 
-	  (\rho_{I3}\var{AllInteractions}) \times (\rho_{I4}\var{AllInteractions}) ] \\[10pt]
-$
--- Actually, this is getting too complex. Let me use a different approach. \\[5pt]
 -- For each ingredient pair, check if ing1 has an interaction that ing2 doesn't have. \\[5pt]
 $
 \var{HasMoreInteractions}(\var{ing1}) := \\[5pt]
@@ -295,7 +257,7 @@ $
 {Drug shortage}
 
 {~}\\
-{\large
+{\small
 -- All unfilled prescriptions (prescriptions not in Filled). \\[5pt]
 $
 \var{UnfilledPrescriptions}(\var{RxID}, \var{drug}, \var{patient}) := 
@@ -371,35 +333,12 @@ $
 {Protecting drug patents}
 
 {~}\\
-{\large
+{\small
 -- All ingredients contained in each brand-name drug (DIN, ingredient). \\[5pt]
 $
 \var{BrandIngredients}(\var{DIN}, \var{ingredient}) := 
 	\Pi_{\var{DIN}, \var{ingredient}} \var{Contains} \\[10pt]
 $
--- Find brand-name drugs where one has an ingredient the other doesn't. \\[5pt]
-$
-\var{DifferentIngredients}(\var{DIN1}, \var{DIN2}) := \\[5pt]
-	\hspace*{1cm}
-	\Pi_{B1.\var{DIN} \rightarrow \var{DIN1}, B2.\var{DIN} \rightarrow \var{DIN2}} \\[5pt]
-	\hspace*{1cm}
-	\sigma_{
-		\substack{
-			B1.\var{DIN} < B2.\var{DIN} \\ \wedge \\
-			B1.\var{ingredient} = B3.\var{ingredient} \\ \wedge \\
-			B3.\var{ingredient} \neq B4.\var{ingredient} \\ \wedge \\
-			B3.\var{DIN} = B1.\var{DIN} \\ \wedge \\
-			B4.\var{DIN} = B2.\var{DIN}
-		}
-	}
-	\Bigg[ 
-		(\rho_{B1}\var{BrandIngredients}) \times 
-		(\rho_{B2}\var{BrandIngredients}) \times
-		(\rho_{B3}\var{BrandIngredients}) \times
-		(\rho_{B4}(\Pi_{\var{DIN}, \var{ingredient}} \var{Contains}))
-	\Bigg] \\[10pt]
-$
--- Actually, let me use a simpler approach. \\[5pt]
 -- Pairs of brand drugs where first has ingredient second doesn't have. \\[5pt]
 $
 \var{HasExtraIngredient}(\var{DIN1}, \var{DIN2}) := \\[5pt]
@@ -418,7 +357,8 @@ $
 			C1.\var{DIN} \neq C2.\var{DIN} \\ \wedge \\
 			C1.\var{ingredient} = C2.\var{ingredient}
 		}
-	}
+	} \\[5pt]
+	\hspace*{1cm}
 	\Big[ (\rho_{C1}\var{Contains}) \times (\rho_{C2}\var{Contains}) \Big] \\[10pt]
 $
 -- All pairs of brand drugs. \\[5pt]
@@ -456,19 +396,13 @@ $
 {Patients at risk}
 
 {~}\\
-{\large
+{\small
 -- Get all ingredients for each drug (both brand and generic). \\[5pt]
 $
 \var{BrandDrugIngredients}(\var{DIN}, \var{ingredient}) := 
 	\Pi_{\var{DIN}, \var{ingredient}} \var{Contains} \\[10pt]
 $
 -- For generic drugs, get ingredients from their brand equivalent. \\[5pt]
-$
-\var{GenericDrugIngredients}(\var{DIN}, \var{ingredient}) := 
-	\Pi_{G.\var{DIN}, C.\var{ingredient}} 
-	(\var{Generic} \bowtie_{G.\var{brand} = C.\var{DIN}} (\rho_{G}\var{Generic} \times \rho_{C}\var{Contains})) \\[10pt]
-$
--- Actually, let me fix this join. \\[5pt]
 $
 \var{GenericWithBrandIngredients}(\var{genericDIN}, \var{ingredient}) := 
 	\Pi_{\var{DIN} \rightarrow \var{genericDIN}, \var{ingredient}} 
@@ -530,7 +464,7 @@ $
 {Many generics}
 
 {~}\\
-{\large
+{\small
 -- All generic drug DINs. \\[5pt]
 $
 \var{GenericDINs}(\var{DIN}) := 
@@ -579,7 +513,6 @@ $
 		(\rho_{F6}(\var{Filled} \bowtie (\var{Prescription} \bowtie \var{GenericDINs})))
 	\Bigg] \\[10pt]
 $
--- This is getting too complicated. Let me simplify by counting filled prescriptions. \\[5pt]
 -- Pharmacists with most generic fills. \\[5pt]
 $
 \var{TopPharmacists}(\var{pharmacist}) := 
@@ -622,7 +555,7 @@ $
 {Lots of competition}
 
 {~}\\
-{\large
+{\small
 -- Manufacturers who make at least one brand-name drug. \\[5pt]
 $
 \var{BrandManufacturers}(\var{manufacturer}) := 
@@ -638,17 +571,6 @@ $
 \var{BrandsWithGenerics}(\var{brandDIN}) := 
 	\Pi_{\var{brand} \rightarrow \var{brandDIN}} \var{Generic} \\[10pt]
 $
--- Manufacturers who make a brand drug without a generic. \\[5pt]
-$
-\var{MfrWithoutAllGenerics}(\var{manufacturer}) := 
-	\Pi_{\var{manufacturer}} 
-	(\var{BrandWithMfr} \bowtie_{\var{DIN} \notin \var{BrandsWithGenerics}} 
-	(\Pi_{\var{DIN}} \var{Product} - \var{BrandsWithGenerics})) \\[10pt]
-$
--- Actually, let me reconsider. We need manufacturers where: \\[5pt]
--- (1) They make brand drugs. \\[5pt]
--- (2) For each of their brand drugs, they make a generic. \\[5pt]
--- (3) For each of their brand drugs, another company also makes a generic. \\[5pt]
 -- Brand drugs made by each manufacturer. \\[5pt]
 $
 \var{MfrBrandDrugs}(\var{manufacturer}, \var{brandDIN}) := 
@@ -706,22 +628,8 @@ $
 {Symmetry}
 
 {~}\\
-{\large
+{\small
 -- If (A, B) is in Interaction, then (B, A) must also be in Interaction. \\[5pt]
--- Violation: (A, B) exists but (B, A) doesn't exist. \\[5pt]
-$
-\sigma_{
-	\substack{
-		I1.\var{ingredient1} = I2.\var{ingredient2} \\ \wedge \\
-		I1.\var{ingredient2} = I2.\var{ingredient1}
-	}
-}
-\Big[
-	\var{Interaction} \times (\rho_{I2}\var{Interaction})
-\Big] = \emptyset
-$
--- Wait, that's wrong. Let me reconsider. \\[5pt]
--- Correct formulation: \\[5pt]
 $
 \Pi_{\var{ingredient2} \rightarrow \var{ing1}, \var{ingredient1} \rightarrow \var{ing2}} 
 \var{Interaction} - \var{Interaction} = \emptyset
@@ -733,7 +641,7 @@ $
 {Don't surpass those with seniority}
 
 {~}\\
-{\large
+{\small
 \textbf{Cannot be expressed.}
 
 \vspace{5pt}
@@ -745,7 +653,7 @@ This constraint requires counting the number of prescriptions filled by each pha
 {Brand-name first}
 
 {~}\\
-{\large
+{\small
 \textbf{Cannot be expressed.}
 
 \vspace{5pt}
