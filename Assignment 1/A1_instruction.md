@@ -38,81 +38,79 @@ for our purposes on this assignment.
 
 ### Relations
 
-- Product(DIN, name, manufacturer, form, schedule, route)
-    A tuple in this relation represents a brand-name drug product.DINis the Drug Identification Number,name
+- Product(DIN, name, manufacturer, form, schedule, route)    **Key: DIN**    A tuple in this relation represents a brand-name drug product.DINis the Drug Identification Number,name
     is the name of the drug,manufactureris the name of the manufacturer,formis the form in which the drug
     product is produced (e.g., “capsule”),scheduleis the category in which the federal government places the drug
     (e.g., “narcotic”), androuteis the route of administration of the drug product (e.g., “oral” or “intravenous”).
     The possible values forscheduleare defined in an integrity constraint below.
 - Generic(DIN, brand, name, manufacturer)
+    **Key: DIN**
     A tuple in this relation represents a generic drug product. DINis the Drug Identification Number,brandis
     the DIN of the corresponding brand-name drug,nameis the name of the generic drug,manufactureris the
     name of its the manufacturer. All the information about the form, schedule, and route of the corresponding
     brand-name drug applies to its generic alternative. For example, if the brand-name drug is a capsule that is a
     narcotic and is taken orally, so is the corresponding generic drug.
 - Price(DIN, price)
+    **Key: DIN**
     A tuple in this relation represents the price of a drug product. DINis the Drug Identification Number, and
     priceis its price.
 
 
 - ActiveIngredient(name)
+    **Key: name**
     A tuple in this relation represents an active ingredient that may be used in the formulation of drug products.
     nameis the name of the active ingredient.
-- Contains(DIN,ingredient, strength, unit)
-    A tuple in this relation represents that an active ingredient is used in the formulation of a drug product.DINis
+- Contains(DIN,ingredient, strength, unit)    **Key: (DIN, ingredient)**    A tuple in this relation represents that an active ingredient is used in the formulation of a drug product.DINis
     the Drug Identification Number of a brand-name drug,ingredientis the name of the active ingredient,strength
     is the strength of the active ingredient (e.g., 200), andunitis the units in terms of which the strength is
     expressed (e.g., “mg”).
 - Interaction(ingredient1,ingredient2)
+    **Key: (ingredient1, ingredient2)**
     A tuple in this relation represents the fact that active ingredientsingredient1andingredient2may result in
     adverse effects if consumed together.
-- Patient(OHIP, name, dob, phone, address)
-    A tuple in this relation represents a patient.OHIPis the patient’s OHIP number,nameis the patient’s name,
+- Patient(OHIP, name, dob, phone, address)    **Key: OHIP**    A tuple in this relation represents a patient.OHIPis the patient’s OHIP number,nameis the patient’s name,
     dobis the patient’s date of birth,phoneis the patient’s phone, andaddressis the patient’s address.
 - Pharmacist(OCP, name, registered)
+    **Key: OCP**
     A tuple in this relation represents a pharmacist who is registered with the Ontario College of Pharmacists.
     OCPis their Ontario College of Pharmacists identification number,nameis their name, andregisteredis the
     date on which they were registered.
 - Prescription(RxID, date, patient, drug, doctor, dosage, note)
+    **Key: RxID**
     A tuple in this relation represents a prescription.RxIDis the prescription ID,dateis the date on which it was
     written,patientis the OHIP number of the patient, for whom this prescription was issued,drugis the drug
     product it is a prescription for,doctoris the identification number of the doctor who wrote it, anddosageis
     the dosage of the prescription.
 - Filled(RxID, date, pharmacist)
+    **Key: RxID**
     A tuple in this relation represents the fact that a prescription was filled.RxIDis the prescription ID,dateis
     the date on which the prescription was filled, andpharmacistis the OCP number of the pharmacist that filled
     the prescription.
 
 ### Integrity constraints
 
-- πDINProduct∩πDINGeneric =φ
-- Generic[brand]⊆Product[DIN]
-- πDINPrice−(πDINProduct∪πDINGeneric) =φ
-- Contains[DIN]⊆Product[DIN]
-- ρDIN(πdrugPrescription)−(πDINProduct∪πDINGeneric) =φ
-- Contains[ingredient]⊆ActiveIngredient[name]
-- Interaction[ingredient1]⊆ActiveIngredient[name]
-- Interaction[ingredient2]⊆ActiveIngredient[name]
+- π_DIN(Product) ∩ π_DIN(Generic) = ∅
+- Generic[brand] ⊆ Product[DIN]
+- π_DIN(Price) − (π_DIN(Product) ∪ π_DIN(Generic)) = ∅
+- Contains[DIN] ⊆ Product[DIN]
+- ρ_DIN(π_drug(Prescription)) − (π_DIN(Product) ∪ π_DIN(Generic)) = ∅
+- Contains[ingredient] ⊆ ActiveIngredient[name]
+- Interaction[ingredient1] ⊆ ActiveIngredient[name]
+- Interaction[ingredient2] ⊆ ActiveIngredient[name]
 - For any two active ingredients A and B, if A interacts with B then B interacts with A.
     (You will express this formally in Part 2. Assume it holds when writing queries in Part 1.)
-- Product[DIN]⊆Contains[DIN]
-- Prescription[patient]⊆Patient[OHIP]
-- Filled[RxID]⊆Prescription[RxID]
-- Filled[pharmacist]⊆Pharmacist[OCP]
-- πscheduleProduct⊆ {“prescription”, “narcotic”, “OTC”, “homeopathic”}
-- σPrescription.RxID=Filled.RxID
-    ∧
-Prescription.date>Filled.date
-
-```
-(Prescription×Filled) =φ
-```
+- Product[DIN] ⊆ Contains[DIN]
+- Prescription[patient] ⊆ Patient[OHIP]
+- Filled[RxID] ⊆ Prescription[RxID]
+- Filled[pharmacist] ⊆ Pharmacist[OCP]
+- π_schedule(Product) ⊆ {"prescription", "narcotic", "OTC", "homeopathic"}
+- σ_Prescription.RxID=Filled.RxID ∧ Prescription.date>Filled.date(Prescription × Filled) = ∅
 
 ## Part 1: Queries
 
 Write the queries below in relational algebra. There are a number of variations on relational algebra, and different
 notations for the operations. You must use the same notation as we have used in this course. You may use assignment,
-and the operators we have used in class: Π,σ,./,./condition,×,∩,∪,−,ρ. Assume that all relations are sets (not bags),
+and the operators we have used in class: Π,σ,⋈,⋈_Θ,×,∩,∪,−,ρ. Assume that all relations are sets (not bags),
 as we have done in class, and do not use any of the extended relational algebra operations from Chapter 5 of the
 textbook (for example, do not use the division operator).
 
