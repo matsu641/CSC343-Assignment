@@ -2,167 +2,353 @@
 \usepackage{fullpage}
 \usepackage[normalem]{ulem}
 \usepackage{amstext,amsmath,amssymb}
-\usepackage{pifont}% http://ctan.org/pkg/pifont
+\usepackage{pifont}
 \usepackage{xcolor}
 
 \newcommand{\var}[1]{\mathit{#1}}
-
 
 \setlength{\parskip}{6pt}
 
 \begin{document}
 
-~~~\vspace{-2.0cm}
+\vspace{-2.0cm}
 
 \noindent
 University of Toronto\\
 {\sc csc}343, Fall 2025\\[10pt]
-{\LARGE\bf Assignment 1: Your name and student number here}
-
-\section*{Delete this before you hand in}
-
-\noindent
-Unary operators on relations:
-\begin{itemize}
-\item $\Pi_{x, y, z} (R)$
-\item $\sigma_{condition} (R) $
-\item $\rho_{New} (R) $
-\end{itemize}
-Binary operators on relations:
-\begin{itemize}
-\item $R \times S$
-\item $R \bowtie S$
-\item $R \bowtie_{condition} S$
-\item $R \cup S$
-\item $R \cap S$
-\item $R - S$
-\end{itemize}
-Logical operators:
-\begin{itemize}
-\item $\vee$
-\item $\wedge$
-\item $\neg$
-\end{itemize}
-Assignment:
-\begin{itemize}
-\item $New(a, b, c) := R$
-\end{itemize}
-General LaTeX tips:
-\begin{itemize}
-\item Some sequences of letters look terrible in ``math mode" (inside dollar signs).
-For example, \verb|$Offer$| comes out as $Offer$.
-You can use \verb|\var| to fix that.
-For example, \verb|$\var{Offer}$| comes out as $\var{Offer}$.
-\item When an expression is deeply nested, it can be hard to match the brackets with your eyes.
-You can vary the size of the brackets to make that easier.
-This LaTeX: \\[5pt]
-\hspace*{1cm} \verb+\Bigg(  \bigg[   \Big(  \big(   \big)  \Big)  \bigg]  \Bigg)+ \\[5pt]
-produces this result: \\[5pt]
-\hspace*{1cm}  \Bigg( \bigg[ \Big( \big(  \big) \Big) \bigg] \Bigg)
-\item 
-Some of your expressions will become very wide because there are multiple, long
-conditions on a select.
-You can stack those conditions using \verb|\substack|.
-Here's an example:
-$$
-\sigma_{\substack{x < 20 \\ \wedge \\ y = 10}} (\var{Some~big~expression}) \\[5pt]
-$$
-Notice that this requires using the package called ``amsmath", which is accomplished by saying\\
-\verb|\usepackage{amsmath}|.
-\end{itemize}
-
-{~}\\
-Below we've included names for the assignment questions, and 
-a nonsense example of how a query might look in LaTeX.  
-As required in this assignment, it uses ``--" to indicate comments.
-Note that we have added less vertical space between comments
-and the algebra they pertain to than between steps in the algebra.
-This helps the comments visually stick to the algebra.
-
-
+{\LARGE\bf Assignment 1: Misumi Matsudo (1010062254), Allie Okumura ()}
 
 %----------------------------------------------------------------------------------------------------------------------
 \section*{Part 1: Queries}
 
 \begin{enumerate}
-\item   % ----------
-{Frugal doctors}
 
-{~}\\ % This puts a newline in to move the answer down a bit from the text above.
-{\large %This increase in font size makes the subscripts much more readable.
--- sID has a grade of at least 85. \\[5pt]
+%--------------------------------------------------
+\item {\large Frugal doctors}
+
+{~}\\
+{\large
+-- DINs that have a listed price. \\[5pt]
 $
-HaveHighGrade(\var{sID}) := 
-	\Pi_{sID} 
-	\sigma_{grade \ge 85} 
-	Took \\[10pt]
+PricedDIN(\var{DIN}) :=
+  \Pi_{\var{DIN}}(\var{Price})
+$ \\[10pt]
+
+-- Generic drugs together with their price. \\[5pt]
 $
--- sID passed a course taught by Atwood. \\[5pt]
+GenPrice(\var{DIN}, \var{brand}, \var{manufacturer}, \var{price}) \\
+  := \Pi_{\var{DIN}, \var{brand}, \var{manufacturer}, \var{price}}
+  (\var{Generic} \bowtie_{\var{Generic.DIN} = \var{Price.DIN}} \var{Price})
+$ \\[10pt]
+
+-- Generics that are not the cheapest for their brand. \\[5pt]
 $
-PassedAtwood(\var{sID}) := 
-	\Pi_{\var{sID}} 
-	\sigma_{instructor := ``Atwood" \wedge grade \ge 50} 
-	(Took \bowtie \var{Offering}) 
-	\\[10pt]
+NonCheapest(\var{DIN}) :=
+  \Pi_{G1.\var{DIN}}
+  \sigma_{\substack{
+    G1.\var{brand} = G2.\var{brand} \\
+    \wedge \\
+    G2.\var{price} < G1.\var{price}
+  }}
+  [ (\rho_{G1}GenPrice) \times (\rho_{G2}GenPrice) ]
+$ \\[10pt]
+
+-- Cheapest generics (ties allowed). \\[5pt]
 $
--- sID got 100 at least twice. \\[5pt]
+CheapestGen(\var{DIN}) :=
+  \Pi_{\var{DIN}}(GenPrice) - NonCheapest
+$ \\[10pt]
+
+-- Brand drugs that have no generic alternative and are priced. \\[5pt]
 $
-AtLeastTwice(\var{sID}) := \\[5pt]  %This RA statement is too long, so we break it into two lines.
-	\hspace*{1cm}  % This command creates an indentation
-	\Pi_{T1.\var{sID}} 
-	\sigma_{
-		T1.\var{oID} \neq T2.\var{oID} \wedge 
-		T1.\var{sID} = T2.\var{sID} \wedge 
-		T1.grade = 100 \wedge T2.grade = 100}
-	[ (\rho_{T1}Took) \times (\rho_{T2}Took) ] \\[5pt]
+BrandNoGen(\var{DIN}) :=
+  (\Pi_{\var{DIN}}(\var{Product}) \cap PricedDIN)
+  -
+  \Pi_{\var{brand}}(\var{Generic})
+$ \\[10pt]
+
+-- Allowed drugs are cheapest generics or brand drugs with no generics. \\[5pt]
 $
-} % End of font size increase.
+AllowedDIN(\var{DIN}) :=
+  CheapestGen \cup BrandNoGen
+$ \\[10pt]
 
+-- Prescriptions involving priced drugs. \\[5pt]
+$
+RxPriced :=
+  \var{Prescription} \bowtie_{\var{drug} = \var{DIN}} PricedDIN
+$ \\[10pt]
 
-\item   % ----------
-{Potential doctor shopping}
+-- Doctors who prescribed a disallowed drug. \\[5pt]
+$
+BadDoctor(\var{doctor}) :=
+  \Pi_{\var{doctor}}
+  (\sigma_{\neg(\var{drug} = \var{DIN})}
+   (RxPriced \times AllowedDIN))
+$ \\[10pt]
 
-\item   % ----------
-{Safest ingredient} 
+-- Doctors who prescribed at least two different priced drugs. \\[5pt]
+$
+TwoDrugs(\var{doctor}) :=
+  \Pi_{P1.\var{doctor}}
+  \sigma_{\substack{
+    P1.\var{doctor} = P2.\var{doctor} \\
+    \wedge \\
+    P1.\var{drug} \neq P2.\var{drug}
+  }}
+  [ (\rho_{P1}RxPriced) \times (\rho_{P2}RxPriced) ]
+$ \\[10pt]
 
-\item   % ----------
-{Drug shortage}
+-- Final answer. \\[5pt]
+$
+Answer(\var{doctor}) :=
+  TwoDrugs - BadDoctor
+$
+}
 
-\item   % ----------
-{Protecting drug patents} 
+%--------------------------------------------------
+\item {\large Potential doctor shopping}
 
-\item   % ----------
-{Patients at risk} 
+{~}\\
+{\large
+-- Map each drug to its brand key. \\[5pt]
+$
+DrugKey(\var{drug}, \var{key}) :=
+  \Pi_{\var{DIN}, \var{DIN}}(\var{Product})
+  \cup
+  \Pi_{\var{DIN}, \var{brand}}(\var{Generic})
+$ \\[10pt]
 
-\item   % ----------
-{Many generics} 
+-- Prescriptions with brand key attached. \\[5pt]
+$
+RxKey :=
+  \var{Prescription} \bowtie_{\var{drug} = \var{DIN}} DrugKey
+$ \\[10pt]
 
-\item   % ----------
-{Lots of competition} 
+-- Patients with two prescriptions of same brand from different doctors. \\[5pt]
+$
+Shopper(\var{OHIP}) :=
+  \Pi_{R1.\var{patient}}
+  \sigma_{\substack{
+    R1.\var{patient} = R2.\var{patient} \\
+    \wedge \\
+    R1.\var{key} = R2.\var{key} \\
+    \wedge \\
+    R1.\var{doctor} \neq R2.\var{doctor}
+  }}
+  [ (\rho_{R1}RxKey) \times (\rho_{R2}RxKey) ]
+$ \\[10pt]
+
+-- Final answer. \\[5pt]
+$
+Answer(\var{OHIP}, \var{name}, \var{phone}) :=
+  \Pi_{\var{OHIP}, \var{name}, \var{phone}}
+  (\var{Patient} \bowtie Shopper)
+$
+}
+
+%--------------------------------------------------
+\item {\large Safest ingredient}
+
+{~}\\
+{\large
+cannot be expressed
+}
+
+%--------------------------------------------------
+\item {\large Drug shortage}
+
+{~}\\
+{\large
+-- Unfilled prescriptions. \\[5pt]
+$
+Unfilled :=
+  \var{Prescription}
+  -
+  (\var{Prescription} \bowtie \var{Filled})
+$ \\[10pt]
+
+-- Drugs with at least three unfilled prescriptions. \\[5pt]
+$
+ThreeUnfilled(\var{DIN}) :=
+  \Pi_{U1.\var{drug}}
+  \sigma_{\substack{
+    U1.\var{drug} = U2.\var{drug} \\
+    \wedge \\
+    U2.\var{drug} = U3.\var{drug} \\
+    \wedge \\
+    U1.\var{RxID} \neq U2.\var{RxID} \neq U3.\var{RxID}
+  }}
+  [ (\rho_{U1}Unfilled) \times (\rho_{U2}Unfilled) \times (\rho_{U3}Unfilled) ]
+$ \\[10pt]
+
+-- Drugs prescribed to at least two different patients. \\[5pt]
+$
+TwoPatients(\var{DIN}) :=
+  \Pi_{U1.\var{drug}}
+  \sigma_{\substack{
+    U1.\var{drug} = U2.\var{drug} \\
+    \wedge \\
+    U1.\var{patient} \neq U2.\var{patient}
+  }}
+  [ (\rho_{U1}Unfilled) \times (\rho_{U2}Unfilled) ]
+$ \\[10pt]
+
+-- Shortage drugs. \\[5pt]
+$
+Shortage(\var{DIN}) :=
+  ThreeUnfilled \cap TwoPatients
+$ \\[10pt]
+
+-- Manufacturer information. \\[5pt]
+$
+Answer(\var{DIN}, \var{manufacturer}) :=
+  Shortage \bowtie
+  (\Pi_{\var{DIN}, \var{manufacturer}}(\var{Product})
+   \cup
+   \Pi_{\var{DIN}, \var{manufacturer}}(\var{Generic}))
+$
+}
+
+%--------------------------------------------------
+\item {\large Protecting drug patents}
+
+{~}\\
+{\large
+-- Brand ingredients. \\[5pt]
+$
+BrandIng(\var{DIN}, \var{ingredient}) :=
+  \Pi_{\var{DIN}, \var{ingredient}}(\var{Contains})
+$ \\[10pt]
+
+-- Pairs of distinct brand drugs. \\[5pt]
+$
+Pairs(\var{DIN1}, \var{DIN2}) :=
+  \Pi_{P1.\var{DIN}, P2.\var{DIN}}
+  \sigma_{P1.\var{DIN} < P2.\var{DIN}}
+  [ (\rho_{P1}\var{Product}) \times (\rho_{P2}\var{Product}) ]
+$ \\[10pt]
+
+-- Ingredient mismatches imply protection. \\[5pt]
+$
+Answer :=
+  Pairs
+  -
+  \Pi_{\var{DIN1}, \var{DIN2}}
+  (BrandIng \cap BrandIng)
+$
+}
+
+%--------------------------------------------------
+\item {\large Patients at risk}
+
+{~}\\
+{\large
+-- Drug ingredients including generics. \\[5pt]
+$
+DrugIng :=
+  \Pi_{\var{DIN}, \var{ingredient}}(\var{Contains})
+  \cup
+  \Pi_{G.\var{DIN}, C.\var{ingredient}}
+  (\var{Generic} \bowtie_{\var{brand} = \var{DIN}} \var{Contains})
+$ \\[10pt]
+
+-- Interacting drug pairs. \\[5pt]
+$
+Interacting :=
+  \Pi_{D1.\var{DIN}, D2.\var{DIN}}
+  \sigma_{\substack{
+    I.\var{ingredient1} = D1.\var{ingredient} \\
+    \wedge \\
+    I.\var{ingredient2} = D2.\var{ingredient}
+  }}
+  [ (\rho_{D1}DrugIng) \times (\rho_{D2}DrugIng) \times \var{Interaction} ]
+$ \\[10pt]
+
+-- Risk events. \\[5pt]
+$
+Answer(\var{doctor}, \var{date}) :=
+  \Pi_{P1.\var{doctor}, P1.\var{date}}
+  \sigma_{\substack{
+    P1.\var{patient} = P2.\var{patient} \\
+    \wedge \\
+    P1.\var{doctor} = P2.\var{doctor} \\
+    \wedge \\
+    P1.\var{date} = P2.\var{date} \\
+    \wedge \\
+    P1.\var{drug} \neq P2.\var{drug}
+  }}
+  [ (\rho_{P1}\var{Prescription})
+    \times
+    (\rho_{P2}\var{Prescription})
+    \times
+    Interacting ]
+$
+}
+
+%--------------------------------------------------
+\item {\large Many generics}
+
+{~}\\
+{\large
+cannot be expressed
+}
+
+%--------------------------------------------------
+\item {\large Lots of competition}
+
+{~}\\
+{\large
+-- Manufacturers who violate the conditions are removed via set difference. \\[5pt]
+$
+Answer(\var{manufacturer}) :=
+  \Pi_{\var{manufacturer}}(\var{Product})
+  -
+  Failures
+$
+}
+
 \end{enumerate}
-
-
-
-
-
 
 %----------------------------------------------------------------------------------------------------------------------
 \section*{Part 2: Additional Integrity Constraints}
 
 \begin{enumerate}
 
-\item   % ----------
-{Symmetry}
+\item {\large Symmetry}
 
-\item   % ----------
-{Don't surpass those with seniority}
+{~}\\
+{\large
+$
+R :=
+  \var{Interaction}
+  -
+  \Pi_{\var{ingredient2}, \var{ingredient1}}(\var{Interaction})
+$ \\[5pt]
 
-\item   % ----------
-{Brand-name first}
+Constraint: $R = \emptyset$
+}
+
+\item {\large Don't surpass those with seniority}
+
+{~}\\
+{\large
+cannot be expressed
+}
+
+\item {\large Brand-name first}
+
+{~}\\
+{\large
+-- Generic prescriptions without prior brand prescription are violations. \\[5pt]
+$
+R :=
+  GenRx - HasEarlierBrand
+$ \\[5pt]
+
+Constraint: $R = \emptyset$
+}
 
 \end{enumerate}
 
 \end{document}
-
-
-
