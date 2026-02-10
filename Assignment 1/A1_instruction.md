@@ -225,19 +225,6 @@ Whatever you choose to use, you need to produce a final document in pdf format.
 If you use software that lets you choose a font size, it must be at least 10. If you use LaTeX, the default font size
 (or larger) is acceptable.
 
-
-## Submission instructions
-
-You must declare your team (whether it is a team of one or two students) and hand in your work electronically using
-the MarkUs online system. Instructions for doing so are posted on the Assignments page of the course website. Well
-before the due date, you should declare your team and try submitting with MarkUs. You can submit an empty file as
-a placeholder, and then submit a new version of the file later (before the deadline, of course); look in the “Replace”
-column.
-
-For this assignment, hand in just one file: A1.pdf. If you are working in a pair, only one of you should hand it in.
-Check that you have submitted the correct version of your file by downloading it from MarkUs; new files will not
-be accepted after the due date.
-
 ## How your assignment will be marked
 
 Most of the marks will be for the correctness of your answers. However, there will be additional marks allocated to
