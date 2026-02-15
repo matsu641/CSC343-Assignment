@@ -12,14 +12,31 @@ CREATE TABLE q1(
     email TEXT	
 );
 
--- You may find it convenient to do this for each of the views
--- that define your intermediate steps. (But give them better names!)
-DROP VIEW IF EXISTS IntermediateStep CASCADE;
+-- Items that have zero reviews (no row in Review at all)
+DROP VIEW IF EXISTS UnratedItems CASCADE;
+CREATE VIEW UnratedItems AS
+SELECT IID
+FROM Item
+WHERE IID NOT IN (SELECT IID FROM Review);
 
--- Define views for your intermediate steps here:
-CREATE VIEW IntermediateStep AS ... ;
+-- Each (customer, unrated item) pair where the customer bought that item
+DROP VIEW IF EXISTS CustomerUnratedPurchases CASCADE;
+CREATE VIEW CustomerUnratedPurchases AS
+SELECT DISTINCT p.CID, li.IID
+FROM Purchase p
+JOIN LineItem li ON p.PID = li.PID
+WHERE li.IID IN (SELECT IID FROM UnratedItems);
 
-
+-- Customers who bought at least 3 different unrated items
+DROP VIEW IF EXISTS QualifiedCustomers CASCADE;
+CREATE VIEW QualifiedCustomers AS
+SELECT CID
+FROM CustomerUnratedPurchases
+GROUP BY CID
+HAVING COUNT(DISTINCT IID) >= 3;
 
 -- Your query that answers the question goes below the "insert into" line:
 INSERT INTO q1
+SELECT c.CID, c.first_name, c.last_name, c.email
+FROM Customer c
+WHERE c.CID IN (SELECT CID FROM QualifiedCustomers);
