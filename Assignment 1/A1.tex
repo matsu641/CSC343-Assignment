@@ -75,7 +75,7 @@ $ \\[10pt]
 
 -- Prescriptions involving priced drugs. \\[5pt]
 $
-RxPriced :=
+RxPriced(\var{RxID}, \var{date}, \var{patient}, \var{drug}, \var{doctor}, \var{dosage}, \var{note}) :=
   \var{Prescription} \bowtie_{\var{drug} = \var{DIN}} PricedDIN
 $ \\[10pt]
 
@@ -121,7 +121,7 @@ $ \\[10pt]
 
 -- Prescriptions with brand key attached. \\[5pt]
 $
-RxKey :=
+RxKey(\var{RxID}, \var{date}, \var{patient}, \var{drug}, \var{doctor}, \var{dosage}, \var{note}, \var{key}) :=
   \var{Prescription} \bowtie_{\var{drug} = \var{DIN}} DrugKey
 $ \\[10pt]
 
@@ -153,6 +153,8 @@ $
 {~}\\
 {\large
 cannot be expressed
+
+\textbf{Reason:} This query requires finding the ingredient with the minimum number of interactions, which necessitates aggregation (COUNT) to count interactions per ingredient and comparison across all counts to find the minimum. Basic relational algebra does not support aggregation functions.
 }
 
 %--------------------------------------------------
@@ -177,7 +179,11 @@ ThreeUnfilled(\var{DIN}) :=
     \wedge \\
     U2.\var{drug} = U3.\var{drug} \\
     \wedge \\
-    U1.\var{RxID} \neq U2.\var{RxID} \neq U3.\var{RxID}
+    U1.\var{RxID} \neq U2.\var{RxID} \\
+    \wedge \\
+    U2.\var{RxID} \neq U3.\var{RxID} \\
+    \wedge \\
+    U1.\var{RxID} \neq U3.\var{RxID}
   }}
   [ (\rho_{U1}Unfilled) \times (\rho_{U2}Unfilled) \times (\rho_{U3}Unfilled) ]
 $ \\[10pt]
@@ -215,7 +221,7 @@ $
 
 {~}\\
 {\large
--- Brand ingredients. \\[5pt]
+-- Brand drug ingredients. \\[5pt]
 $
 BrandIng(\var{DIN}, \var{ingredient}) :=
   \Pi_{\var{DIN}, \var{ingredient}}(\var{Contains})
@@ -229,13 +235,36 @@ Pairs(\var{DIN1}, \var{DIN2}) :=
   [ (\rho_{P1}\var{Product}) \times (\rho_{P2}\var{Product}) ]
 $ \\[10pt]
 
--- Ingredient mismatches imply protection. \\[5pt]
+-- All combinations of (pair, ingredient from drug1). \\[5pt]
 $
-Answer :=
-  Pairs
-  -
-  \Pi_{\var{DIN1}, \var{DIN2}}
-  (BrandIng \cap BrandIng)
+PairIng1(\var{DIN1}, \var{DIN2}, \var{ingredient}) :=
+  \Pi_{\var{DIN1}, \var{DIN2}, \var{ingredient}}
+  (Pairs \bowtie_{\var{DIN1} = \var{DIN}} BrandIng)
+$ \\[10pt]
+
+-- All combinations of (pair, ingredient from drug2). \\[5pt]
+$
+PairIng2(\var{DIN1}, \var{DIN2}, \var{ingredient}) :=
+  \Pi_{\var{DIN1}, \var{DIN2}, \var{ingredient}}
+  (Pairs \bowtie_{\var{DIN2} = \var{DIN}} BrandIng)
+$ \\[10pt]
+
+-- Pairs where drug1 has an ingredient not in drug2. \\[5pt]
+$
+Mismatch1(\var{DIN1}, \var{DIN2}) :=
+  \Pi_{\var{DIN1}, \var{DIN2}}(PairIng1 - PairIng2)
+$ \\[10pt]
+
+-- Pairs where drug2 has an ingredient not in drug1. \\[5pt]
+$
+Mismatch2(\var{DIN1}, \var{DIN2}) :=
+  \Pi_{\var{DIN1}, \var{DIN2}}(PairIng2 - PairIng1)
+$ \\[10pt]
+
+-- Pairs with exactly the same ingredients. \\[5pt]
+$
+Answer(\var{DIN1}, \var{DIN2}) :=
+  Pairs - Mismatch1 - Mismatch2
 $
 }
 
@@ -246,7 +275,7 @@ $
 {\large
 -- Drug ingredients including generics. \\[5pt]
 $
-DrugIng :=
+DrugIng(\var{DIN}, \var{ingredient}) :=
   \Pi_{\var{DIN}, \var{ingredient}}(\var{Contains})
   \cup
   \Pi_{G.\var{DIN}, C.\var{ingredient}}
@@ -255,7 +284,7 @@ $ \\[10pt]
 
 -- Interacting drug pairs. \\[5pt]
 $
-Interacting :=
+Interacting(\var{DIN1}, \var{DIN2}) :=
   \Pi_{D1.\var{DIN}, D2.\var{DIN}}
   \sigma_{\substack{
     I.\var{ingredient1} = D1.\var{ingredient} \\
@@ -276,13 +305,15 @@ Answer(\var{doctor}, \var{date}) :=
     \wedge \\
     P1.\var{date} = P2.\var{date} \\
     \wedge \\
-    P1.\var{drug} \neq P2.\var{drug}
+    P1.\var{drug} = I.\var{DIN1} \\
+    \wedge \\
+    P2.\var{drug} = I.\var{DIN2}
   }}
   [ (\rho_{P1}\var{Prescription})
     \times
     (\rho_{P2}\var{Prescription})
     \times
-    Interacting ]
+    (\rho_I Interacting) ]
 $
 }
 
@@ -292,6 +323,8 @@ $
 {~}\\
 {\large
 cannot be expressed
+
+\textbf{Reason:} This query requires counting the number of generic drugs per brand and filtering brands with more than a specific threshold. The COUNT aggregation function and numerical comparison of counts are not expressible in basic relational algebra.
 }
 
 %--------------------------------------------------
@@ -299,7 +332,61 @@ cannot be expressed
 
 {~}\\
 {\large
--- Manufacturers who violate the conditions are removed via set difference. \\[5pt]
+-- Brand drugs with their manufacturer. \\[5pt]
+$
+BrandDrugs(\var{DIN}, \var{manufacturer}) :=
+  \Pi_{\var{DIN}, \var{manufacturer}}(\var{Product})
+$ \\[10pt]
+
+-- Generics with their brand and manufacturer. \\[5pt]
+$
+GenDrugs(\var{brand}, \var{manufacturer}) :=
+  \Pi_{\var{brand}, \var{manufacturer}}(\var{Generic})
+$ \\[10pt]
+
+-- Brand drugs that have a generic from the same manufacturer. \\[5pt]
+$
+HasOwnGen(\var{DIN}, \var{manufacturer}) :=
+  \Pi_{B.\var{DIN}, B.\var{manufacturer}}
+  \sigma_{\substack{
+    B.\var{DIN} = G.\var{brand} \\
+    \wedge \\
+    B.\var{manufacturer} = G.\var{manufacturer}
+  }}
+  [ (\rho_B BrandDrugs) \times (\rho_G GenDrugs) ]
+$ \\[10pt]
+
+-- Brand drugs that have a generic from a different manufacturer. \\[5pt]
+$
+HasOtherGen(\var{DIN}, \var{manufacturer}) :=
+  \Pi_{B.\var{DIN}, B.\var{manufacturer}}
+  \sigma_{\substack{
+    B.\var{DIN} = G.\var{brand} \\
+    \wedge \\
+    B.\var{manufacturer} \neq G.\var{manufacturer}
+  }}
+  [ (\rho_B BrandDrugs) \times (\rho_G GenDrugs) ]
+$ \\[10pt]
+
+-- Manufacturers whose brand drug lacks their own generic (violates condition 2). \\[5pt]
+$
+Fail2(\var{manufacturer}) :=
+  \Pi_{\var{manufacturer}}(BrandDrugs - HasOwnGen)
+$ \\[10pt]
+
+-- Manufacturers whose brand drug lacks generic from other company (violates condition 3). \\[5pt]
+$
+Fail3(\var{manufacturer}) :=
+  \Pi_{\var{manufacturer}}(BrandDrugs - HasOtherGen)
+$ \\[10pt]
+
+-- All manufacturers who fail at least one condition. \\[5pt]
+$
+Failures(\var{manufacturer}) :=
+  Fail2 \cup Fail3
+$ \\[10pt]
+
+-- Manufacturers who satisfy all conditions. \\[5pt]
 $
 Answer(\var{manufacturer}) :=
   \Pi_{\var{manufacturer}}(\var{Product})
@@ -334,16 +421,49 @@ Constraint: $R = \emptyset$
 {~}\\
 {\large
 cannot be expressed
+
+\textbf{Reason:} This constraint requires comparing aggregate values (e.g., total number of prescriptions filled) between pharmacists for each year based on their seniority ordering. This involves aggregation functions (COUNT) and grouping by year, which are not supported in basic relational algebra.
 }
 
 \item {\large Brand-name first}
 
 {~}\\
 {\large
--- Generic prescriptions without prior brand prescription are violations. \\[5pt]
+-- Generic drug prescriptions. \\[5pt]
+$
+GenRx(\var{RxID}, \var{date}, \var{doctor}, \var{brand}) :=
+  \Pi_{\var{RxID}, \var{date}, \var{doctor}, \var{brand}}
+  (\var{Prescription} \bowtie_{\var{drug} = \var{DIN}} \var{Generic})
+$ \\[10pt]
+
+-- Brand-name prescriptions (brand drug or any generic of that brand). \\[5pt]
+$
+BrandRx(\var{doctor}, \var{brand}, \var{date}) :=
+  \Pi_{\var{doctor}, \var{Product.DIN}, \var{date}}
+  (\var{Prescription} \bowtie_{\var{drug} = \var{DIN}} \var{Product})
+  \cup
+  \Pi_{\var{doctor}, \var{brand}, \var{date}}
+  (\var{Prescription} \bowtie_{\var{drug} = \var{DIN}} \var{Generic})
+$ \\[10pt]
+
+-- Generic prescriptions with an earlier brand prescription by same doctor. \\[5pt]
+$
+HasEarlierBrand(\var{RxID}) :=
+  \Pi_{G.\var{RxID}}
+  \sigma_{\substack{
+    G.\var{doctor} = B.\var{doctor} \\
+    \wedge \\
+    G.\var{brand} = B.\var{brand} \\
+    \wedge \\
+    B.\var{date} < G.\var{date}
+  }}
+  [ (\rho_G GenRx) \times (\rho_B BrandRx) ]
+$ \\[10pt]
+
+-- Violations: generic prescriptions without prior brand prescription. \\[5pt]
 $
 R :=
-  GenRx - HasEarlierBrand
+  \Pi_{\var{RxID}}(GenRx) - HasEarlierBrand
 $ \\[5pt]
 
 Constraint: $R = \emptyset$
