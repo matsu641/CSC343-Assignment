@@ -115,7 +115,52 @@ class Recommender:
         # TODO - complete this method
 
         try:
-            pass
+            cursor = self.connection.cursor()
+
+            # Clear both tables (EliteRating first due to FK)
+            cursor.execute("DELETE FROM EliteRating;")
+            cursor.execute("DELETE FROM PopularItem;")
+
+            # Populate PopularItem:
+            # For each category, find items with highest and
+            # second-highest total units sold. Only items with
+            # at least one unit sold. Ties included.
+            populate_popular = """
+                INSERT INTO PopularItem (IID, avg_rating)
+                SELECT s.IID, r.avg_rating
+                FROM (
+                    SELECT li.IID, i.category,
+                        SUM(li.quantity) AS total_units,
+                        DENSE_RANK() OVER (
+                            PARTITION BY i.category
+                            ORDER BY SUM(li.quantity) DESC
+                        ) AS rank
+                    FROM LineItem li
+                    JOIN Item i ON li.IID = i.IID
+                    GROUP BY li.IID, i.category
+                ) s
+                LEFT JOIN (
+                    SELECT IID, AVG(rating)::FLOAT AS avg_rating
+                    FROM Review
+                    GROUP BY IID
+                ) r ON s.IID = r.IID
+                WHERE s.rank <= 2;
+            """
+            cursor.execute(populate_popular)
+
+            # Populate EliteRating:
+            # Elite members who rated popular items
+            populate_elite_rating = """
+                INSERT INTO EliteRating (CID, IID, rating)
+                SELECT r.CID, r.IID, r.rating
+                FROM Review r
+                JOIN EliteMember em ON r.CID = em.CID
+                JOIN PopularItem pi ON r.IID = pi.IID;
+            """
+            cursor.execute(populate_elite_rating)
+
+            self.connection.commit()
+            return True
         except pg.Error as ex:
             # You may find it helpful to uncomment this line while debugging,
             # as it will show you all the details of the error that occurred:
@@ -150,7 +195,21 @@ class Recommender:
         # TODO - complete this method
 
         try:
-            pass
+            cursor = self.connection.cursor()
+
+            # Get top k average ratings from PopularItem,
+            # excluding NULLs (NULL < 0).
+            # If ties, order by IID and take lowest k.
+            query = """
+                SELECT IID
+                FROM PopularItem
+                WHERE avg_rating IS NOT NULL
+                ORDER BY avg_rating DESC, IID ASC
+                LIMIT %s;
+            """
+            cursor.execute(query, (k,))
+            results = cursor.fetchall()
+            return [row[0] for row in results]
         except pg.Error as ex:
             # You may find it helpful to uncomment this line while debugging,
             # as it will show you all the details of the error that occurred:
@@ -213,15 +272,61 @@ class Recommender:
         # TODO - complete this method
 
         try:
-            pass
+            cursor = self.connection.cursor()
+
+            # Step 1: Find elite analogous rater.
+            # For each elite member, compute the average absolute
+            # rating difference with cust on popular items rated
+            # by both. Lowest non-NULL avg diff wins; ties broken
+            # by lower CID.
+            find_analogous = """
+                SELECT er.CID,
+                    AVG(ABS(r.rating - er.rating)) AS avg_diff
+                FROM EliteRating er
+                JOIN Review r
+                    ON r.CID = %s AND r.IID = er.IID
+                GROUP BY er.CID
+                ORDER BY avg_diff ASC, er.CID ASC
+                LIMIT 1;
+            """
+            cursor.execute(find_analogous, (cust,))
+            row = cursor.fetchone()
+
+            if row is None:
+                # No elite analogous rater found
+                return self.recommend_generic(k)
+
+            analogous_cid = row[0]
+
+            # Step 2: Items rated by the analogous rater but
+            # never bought by cust. Top k by rating, ties broken
+            # by IID.
+            recommend_query = """
+                SELECT r.IID
+                FROM Review r
+                WHERE r.CID = %s
+                    AND r.IID NOT IN (
+                        SELECT li.IID
+                        FROM Purchase p
+                        JOIN LineItem li ON p.PID = li.PID
+                        WHERE p.CID = %s
+                    )
+                ORDER BY r.rating DESC, r.IID ASC
+                LIMIT %s;
+            """
+            cursor.execute(recommend_query, (analogous_cid, cust, k))
+            results = cursor.fetchall()
+
+            if len(results) == 0:
+                # Cust has bought all items rated by analogous rater
+                return self.recommend_generic(k)
+
+            return [row[0] for row in results]
         except pg.Error as ex:
             # You may find it helpful to uncomment this line while debugging,
             # as it will show you all the details of the error that occurred:
             # raise ex
             return None
-
-
-if __name__ == "__main__":
     # Un comment-out the next two lines if you would like all the doctest
     # examples (see ">>>" in the method and class docstrings) to be run
     # and checked.

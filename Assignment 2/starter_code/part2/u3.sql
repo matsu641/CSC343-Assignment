@@ -4,10 +4,23 @@
 SET SEARCH_PATH TO Recommender;
 
 
--- You may find it convenient to do this for each of the views
--- that define your intermediate steps. (But give them better names!)
-DROP VIEW IF EXISTS IntermediateStep CASCADE;
+-- Insert the free mug item with next available IID
+INSERT INTO Item (IID, category, description, price)
+SELECT COALESCE(MAX(IID), 0) + 1, 'Housewares', 'Company logo mug', 0
+FROM Item;
 
--- Define views for your intermediate steps here:
-CREATE VIEW IntermediateStep AS ... ;
+-- For each customer who ordered yesterday, find their first
+-- purchase (lowest checkout_time, ties broken by lowest PID)
+DROP VIEW IF EXISTS FirstYesterdayPurchase CASCADE;
+CREATE VIEW FirstYesterdayPurchase AS
+SELECT DISTINCT ON (CID) CID, PID
+FROM Purchase
+WHERE checkout_time::date = (CURRENT_DATE - INTERVAL '1 day')::date
+ORDER BY CID, checkout_time, PID;
 
+-- Add the free mug as a line item to those purchases
+-- Look up the mug's IID by its description to avoid view re-evaluation
+INSERT INTO LineItem (PID, IID, quantity)
+SELECT fyp.PID, i.IID, 1
+FROM FirstYesterdayPurchase fyp
+CROSS JOIN (SELECT IID FROM Item WHERE description = 'Company logo mug') i;
