@@ -1,0 +1,159 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\begin{document}
+
+\begin{center}
+{\Large CSC343 Assignment 3 -- Part 2 Solutions}
+\end{center}
+
+\section*{1. Relation $R_1(L,M,N,O,P,Q,R,S)$, $S_1$}
+Given:
+\[
+S_1 = \{L \to NQ,\; MNR \to O,\; O \to M,\; NQ \to LS,\; S \to OPR\}
+\]
+
+\subsection*{(a) BCNF violations}
+A dependency violates BCNF if its LHS is not a superkey in $R_1$.
+
+Key observations:
+\begin{itemize}
+\item $L^+ = LMNOPQRS$, so $L$ is a superkey.
+\item $(NQ)^+ = LMNOPQRS$, so $NQ$ is a superkey.
+\item $O^+ = OM$ (not a superkey), $S^+ = SMOPR$ (not a superkey),
+and $(MNR)^+ = MNRO$ (not a superkey).
+\end{itemize}
+
+Therefore, BCNF-violating FDs are:
+\[
+MNR \to O,\quad O \to M,\quad S \to OPR.
+\]
+
+\subsection*{(b) BCNF decomposition}
+Start with $R_1(LMNOPQRS)$.
+
+Use violating FD $O \to M$:
+\[
+R_{11}(OM),\quad R_{12}(LNOPQRS).
+\]
+
+In $R_{12}$, projected FD $S \to OPR$ still violates BCNF.
+Decompose $R_{12}$ by $S \to OPR$:
+\[
+R_{121}(OPRS),\quad R_{122}(LNQS).
+\]
+
+Final BCNF decomposition (relations listed in alphabetical attribute order):
+\[
+R_A(LNQS),\quad R_B(MO),\quad R_C(OPRS).
+\]
+
+Projected FDs on final relations:
+\begin{itemize}
+\item On $R_A(LNQS)$: $L \to NQ$, $NQ \to LS$.
+\item On $R_B(MO)$: $O \to M$.
+\item On $R_C(OPRS)$: $S \to OPR$.
+\end{itemize}
+
+\subsection*{(c) Dependency preservation}
+Not dependency-preserving.
+
+FD $MNR \to O$ is not present in any single final relation, and cannot be
+inferred from the union of projected FDs on $R_A, R_B, R_C$.
+So at least this dependency is lost.
+
+\subsection*{(d) Chase test for lossless join}
+Use decomposition $\{MO, OPRS, LNQS\}$ over attributes $LMNOPQRS$.
+Initialize tableau rows with distinguished symbols $a_L,\dots,a_S$ for
+attributes in each row's relation, and fresh $b$ symbols elsewhere.
+
+Rows (only key entries shown):
+\begin{itemize}
+\item Row for $MO$: $M=a_M, O=a_O$.
+\item Row for $OPRS$: $O=a_O, P=a_P, R=a_R, S=a_S$.
+\item Row for $LNQS$: $L=a_L, N=a_N, Q=a_Q, S=a_S$.
+\end{itemize}
+
+Apply FDs:
+\begin{itemize}
+\item $S \to OPR$: from $S=a_S$ in row $LNQS$, force $O=a_O, P=a_P, R=a_R$.
+\item $O \to M$: now row $LNQS$ has $O=a_O$, force $M=a_M$.
+\item $L \to NQ$ and $NQ \to LS$ are already satisfied in row $LNQS$.
+\end{itemize}
+
+After chasing, row $LNQS$ contains distinguished $a$ symbols for all
+attributes $L,M,N,O,P,Q,R,S$. Therefore the join is lossless.
+
+\section*{2. Relation $R_2(A,B,C,D,E,F,G,H)$, $S_2$}
+Given:
+\[
+S_2 = \{AB \to C,\; C \to ABD,\; CFD \to E,\; E \to B,\; BF \to EC,\; B \to DA\}
+\]
+
+\subsection*{(a) Minimal basis}
+Split RHS and simplify:
+\begin{itemize}
+\item $AB \to C$ reduces to $B \to C$ (since $B \to A$).
+\item $C \to A, C \to D$ are redundant given $C \to B$ and $B \to A, B \to D$.
+\item $BF \to C$ is redundant given $B \to C$.
+\item $CFD \to E$ is redundant since $C \to B$ and then $BF \to E$.
+\end{itemize}
+
+One minimal basis in alphabetical order:
+\[
+\{B \to A,\; B \to C,\; B \to D,\; BF \to E,\; C \to B,\; E \to B\}.
+\]
+
+\subsection*{(b) All keys for $R_2$}
+Attributes not on any RHS are $F,G,H$, so every key must include $FGH$.
+Need one of $B,C,E$ to generate the rest:
+\begin{itemize}
+\item $BFGH^+ = ABCDEFGH$.
+\item $CFGH^+ = ABCDEFGH$ (via $C \to B$).
+\item $EFGH^+ = ABCDEFGH$ (via $E \to B$).
+\end{itemize}
+
+All candidate keys:
+\[
+\{BFGH,\; CFGH,\; EFGH\}.
+\]
+
+\subsection*{(c) 3NF synthesis}
+From minimal basis, combine same LHS:
+\[
+B \to ACD,\quad BF \to E,\quad C \to B,\quad E \to B.
+\]
+
+Create relations:
+\begin{itemize}
+\item From $B \to ACD$: $R_1(ABCD)$.
+\item From $BF \to E$: $R_2(BEF)$.
+\item From $C \to B$: $R_3(BC)$.
+\item From $E \to B$: $R_4(BE)$.
+\end{itemize}
+
+Remove subset relations:
+\begin{itemize}
+\item $R_3(BC) \subseteq R_1(ABCD)$, remove $R_3$.
+\item $R_4(BE) \subseteq R_2(BEF)$, remove $R_4$.
+\end{itemize}
+
+No remaining relation contains a key for $R_2$, so add one key relation,
+for example $R_5(BFGH)$.
+
+Final 3NF decomposition (alphabetical by attribute list):
+\[
+R_1(ABCD),\quad R_2(BEF),\quad R_3(BFGH).
+\]
+
+This decomposition is dependency-preserving (by synthesis construction) and
+lossless (contains a key relation $BFGH$).
+
+\subsection*{(d) Redundancy}
+Yes, redundancy is possible.
+
+The relation $R_2(BEF)$ is in 3NF but not BCNF due to projected dependency
+$E \to B$ where $E$ is not a superkey in $R_2(BEF)$. This can repeat the same
+$B$ value across multiple tuples with the same $E$ and different $F$.
+So redundancy can occur.
+
+\end{document}
