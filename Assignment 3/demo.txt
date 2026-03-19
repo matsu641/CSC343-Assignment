@@ -1,33 +1,312 @@
+\echo -------------------- Loading schema and data: -------------------- 
 -------------------- Loading schema and data: --------------------
+\echo
 
+\i schema.ddl
+-- Could not:
+-- 1) Enforce that Ticket.seat_id must belong to the same venue as
+--    Ticket.concert_id without assertions or triggers.
+-- 2) Enforce that ConcertSectionPrice.section_id must belong to the same venue
+--    as ConcertSectionPrice.concert_id without assertions or triggers.
+--
+-- Did not:
+-- None.
+--
+-- Extra constraints:
+-- 1) Venue has a UNIQUE(city, street_address) constraint.
+-- 2) Ticket has UNIQUE(concert_id, seat_id) to prevent double-selling a seat.
+-- 3) ConcertSectionPrice has UNIQUE(concert_id, section_id).
+--
+-- Assumptions:
+-- 1) A ticket is for one concrete seat at one concert.
+-- 2) A purchase may include multiple tickets.
+-- 3) A venue's section layout is fixed across all concerts in that venue.
+DROP SCHEMA IF EXISTS TicketSchema CASCADE;
 DROP SCHEMA
+CREATE SCHEMA TicketSchema;
 CREATE SCHEMA
+SET search_path TO TicketSchema;
 SET
+-- A row means one owner (person/company) with a unique phone number.
+CREATE TABLE Owner (
+    owner_id SERIAL PRIMARY KEY,
+    owner_name TEXT NOT NULL,
+    phone TEXT NOT NULL UNIQUE
+);
 CREATE TABLE
+-- A row means one venue at one city/street address with exactly one owner.
+CREATE TABLE Venue (
+    venue_id SERIAL PRIMARY KEY,
+    venue_name TEXT NOT NULL,
+    city TEXT NOT NULL,
+    street_address TEXT NOT NULL,
+    owner_id INTEGER NOT NULL REFERENCES Owner(owner_id),
+    UNIQUE (city, street_address)
+);
 CREATE TABLE
+-- A row means one named section in one venue.
+CREATE TABLE Section (
+    section_id SERIAL PRIMARY KEY,
+    venue_id INTEGER NOT NULL REFERENCES Venue(venue_id),
+    section_name TEXT NOT NULL,
+    UNIQUE (venue_id, section_name)
+);
 CREATE TABLE
+-- A row means one physical seat in one section of one venue.
+CREATE TABLE Seat (
+    seat_id SERIAL PRIMARY KEY,
+    section_id INTEGER NOT NULL REFERENCES Section(section_id),
+    seat_name TEXT NOT NULL,
+    is_accessible BOOLEAN NOT NULL,
+    UNIQUE (section_id, seat_name)
+);
 CREATE TABLE
+-- A row means one concert at one venue and start timestamp.
+CREATE TABLE Concert (
+    concert_id SERIAL PRIMARY KEY,
+    concert_name TEXT NOT NULL,
+    start_at TIMESTAMP NOT NULL,
+    venue_id INTEGER NOT NULL REFERENCES Venue(venue_id),
+    UNIQUE (venue_id, start_at)
+);
 CREATE TABLE
+-- A row means one section price for one concert.
+CREATE TABLE ConcertSectionPrice (
+    concert_section_price_id SERIAL PRIMARY KEY,
+    concert_id INTEGER NOT NULL REFERENCES Concert(concert_id),
+    section_id INTEGER NOT NULL REFERENCES Section(section_id),
+    price NUMERIC(10, 2) NOT NULL CHECK (price > 0),
+    UNIQUE (concert_id, section_id)
+);
 CREATE TABLE
+-- A row means one app user identified by a unique username.
+CREATE TABLE AppUser (
+    user_id SERIAL PRIMARY KEY,
+    username TEXT NOT NULL UNIQUE
+);
 CREATE TABLE
+-- A row means one purchase event made by one user at one time.
+CREATE TABLE Purchase (
+    purchase_id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES AppUser(user_id),
+    purchased_at TIMESTAMP NOT NULL
+);
 CREATE TABLE
+-- A row means one sold ticket: one seat, one concert, one purchase record.
+CREATE TABLE Ticket (
+    ticket_id SERIAL PRIMARY KEY,
+    purchase_id INTEGER NOT NULL REFERENCES Purchase(purchase_id),
+    concert_id INTEGER NOT NULL REFERENCES Concert(concert_id),
+    seat_id INTEGER NOT NULL REFERENCES Seat(seat_id),
+    UNIQUE (concert_id, seat_id)
+);
 CREATE TABLE
+\i data.sql
+SET search_path TO TicketSchema;
 SET
+INSERT INTO Owner (owner_id, owner_name, phone) VALUES
+(1, 'Aurora Entertainment Group', '416-555-0101'),
+(2, 'Maple City Operations', '416-555-0102'),
+(3, 'North Stage Holdings', '416-555-0103'),
+(4, 'Grand River Venues', '416-555-0104'),
+(5, 'Skyline Event Corp', '416-555-0105'),
+(6, 'Lakeshore Arts Co', '416-555-0106');
 INSERT 0 6
+INSERT INTO Venue (
+    venue_id, venue_name, city, street_address, owner_id
+) VALUES
+(1, 'Harbour Dome', 'Toronto', '100 Queens Quay E', 1),
+(2, 'Maple Hall', 'Toronto', '250 King St W', 1),
+(3, 'Rose Arena', 'Mississauga', '11 Centre Dr', 1),
+(4, 'Pine Theatre', 'Ottawa', '89 Sparks St', 2),
+(5, 'Riverfront Stage', 'Hamilton', '55 Bay St N', 2),
+(6, 'Summit Live House', 'Waterloo', '9 University Ave', 3),
+(7, 'Midtown Pavilion', 'London', '77 Richmond St', 4),
+(8, 'Garden Sound Space', 'Kingston', '18 Princess St', 5),
+(9, 'Crescent Auditorium', 'Windsor', '210 Ouellette Ave', 5),
+(10, 'Canal Concert Hall', 'Ottawa', '20 Rideau St', 6);
 INSERT 0 10
+INSERT INTO Section (section_id, venue_id, section_name)
+SELECT
+    (v.venue_id - 1) * 2 + x.pos AS section_id,
+    v.venue_id,
+    x.section_name
+FROM Venue v
+CROSS JOIN (
+    VALUES (1, 'Floor'), (2, 'Balcony')
+) AS x(pos, section_name)
+ORDER BY v.venue_id, x.pos;
 INSERT 0 20
+-- Venue 1 has 60 seats total (30 per section). Others have 10 total (5/section).
+INSERT INTO Seat (section_id, seat_name, is_accessible)
+SELECT
+    s.section_id,
+    CASE
+        WHEN s.section_name = 'Floor' THEN 'F' || gs.n::TEXT
+        ELSE 'B' || gs.n::TEXT
+    END AS seat_name,
+    CASE
+        WHEN s.venue_id = 1 THEN gs.n <= 15
+        WHEN s.venue_id IN (3, 7) THEN gs.n <= 3
+        WHEN s.venue_id = 5 THEN gs.n <= 2
+        ELSE gs.n = 1
+    END AS is_accessible
+FROM Section s
+CROSS JOIN generate_series(1, 30) AS gs(n)
+WHERE s.venue_id = 1 OR gs.n <= 5
+ORDER BY s.section_id, gs.n;
 INSERT 0 150
+INSERT INTO Concert (concert_id, concert_name, start_at, venue_id) VALUES
+(1, 'City Lights Festival', '2026-05-10 20:00:00', 1),
+(2, 'Acoustic Night', '2026-05-12 19:30:00', 2),
+(3, 'Retro Rewind', '2026-05-14 20:30:00', 3),
+(4, 'Jazz in Spring', '2026-05-16 19:00:00', 4);
 INSERT 0 4
+INSERT INTO ConcertSectionPrice (concert_id, section_id, price)
+SELECT
+    c.concert_id,
+    s.section_id,
+    CASE
+        WHEN s.section_name = 'Floor' THEN
+            CASE c.concert_id
+                WHEN 1 THEN 120.00
+                WHEN 2 THEN 65.00
+                WHEN 3 THEN 80.00
+                ELSE 90.00
+            END
+        ELSE
+            CASE c.concert_id
+                WHEN 1 THEN 75.00
+                WHEN 2 THEN 45.00
+                WHEN 3 THEN 55.00
+                ELSE 60.00
+            END
+    END AS price
+FROM Concert c
+JOIN Section s ON s.venue_id = c.venue_id;
 INSERT 0 8
+INSERT INTO AppUser (user_id, username) VALUES
+(1, 'powerbuyer'),
+(2, 'musicfan22'),
+(3, 'latecheckout'),
+(4, 'firstrowdreams'),
+(5, 'balconybeats'),
+(6, 'weekendvibes'),
+(7, 'ticketscout');
 INSERT 0 7
+INSERT INTO Purchase (purchase_id, user_id, purchased_at) VALUES
+(1, 1, '2026-03-01 10:00:00'),
+(2, 2, '2026-03-01 10:05:00'),
+(3, 3, '2026-03-01 10:10:00'),
+(4, 4, '2026-03-01 10:15:00'),
+(5, 5, '2026-03-02 11:00:00'),
+(6, 6, '2026-03-02 11:10:00'),
+(7, 7, '2026-03-02 11:20:00'),
+(8, 1, '2026-03-03 12:00:00');
 INSERT 0 8
+-- Concert 1: 55 tickets sold (>= 50). User 1 buys 30 of these.
+WITH ranked AS (
+    SELECT seat_id, ROW_NUMBER() OVER (ORDER BY seat_id) AS rn
+    FROM Seat
+    WHERE section_id IN (
+        SELECT section_id FROM Section WHERE venue_id = 1
+    )
+)
+INSERT INTO Ticket (purchase_id, concert_id, seat_id)
+SELECT
+    CASE
+        WHEN rn <= 30 THEN 1
+        WHEN rn <= 40 THEN 2
+        WHEN rn <= 48 THEN 3
+        ELSE 4
+    END AS purchase_id,
+    1 AS concert_id,
+    seat_id
+FROM ranked
+WHERE rn <= 55;
 INSERT 0 55
+-- Concert 3: 8 tickets sold (between 0 and 50).
+WITH ranked AS (
+    SELECT seat_id, ROW_NUMBER() OVER (ORDER BY seat_id) AS rn
+    FROM Seat
+    WHERE section_id IN (
+        SELECT section_id FROM Section WHERE venue_id = 3
+    )
+)
+INSERT INTO Ticket (purchase_id, concert_id, seat_id)
+SELECT
+    CASE
+        WHEN rn <= 2 THEN 1
+        WHEN rn <= 4 THEN 5
+        WHEN rn <= 6 THEN 6
+        ELSE 7
+    END AS purchase_id,
+    3 AS concert_id,
+    seat_id
+FROM ranked
+WHERE rn <= 8;
 INSERT 0 8
+-- Concert 4: 5 tickets sold.
+WITH ranked AS (
+    SELECT seat_id, ROW_NUMBER() OVER (ORDER BY seat_id) AS rn
+    FROM Seat
+    WHERE section_id IN (
+        SELECT section_id FROM Section WHERE venue_id = 4
+    )
+)
+INSERT INTO Ticket (purchase_id, concert_id, seat_id)
+SELECT
+    CASE
+        WHEN rn <= 3 THEN 8
+        ELSE 2
+    END AS purchase_id,
+    4 AS concert_id,
+    seat_id
+FROM ranked
+WHERE rn <= 5;
 INSERT 0 5
+\echo
 
+\echo  -------------------- Query 1: ----------------------------------- 
 -------------------- Query 1: -----------------------------------
+\echo
 
+\i q1.sql
+SET search_path TO TicketSchema;
 SET
+WITH venue_capacity AS (
+    SELECT
+        sec.venue_id,
+        COUNT(*) AS total_seats
+    FROM Section sec
+    JOIN Seat s ON s.section_id = sec.section_id
+    GROUP BY sec.venue_id
+),
+concert_sales AS (
+    SELECT
+        c.concert_id,
+        COUNT(t.ticket_id) AS tickets_sold,
+        COALESCE(SUM(csp.price), 0) AS total_value_sold
+    FROM Concert c
+    LEFT JOIN Ticket t ON t.concert_id = c.concert_id
+    LEFT JOIN Seat s ON s.seat_id = t.seat_id
+    LEFT JOIN ConcertSectionPrice csp
+        ON csp.concert_id = c.concert_id
+       AND csp.section_id = s.section_id
+    GROUP BY c.concert_id
+)
+SELECT
+    c.concert_name,
+    c.start_at,
+    v.venue_name,
+    cs.tickets_sold,
+    cs.total_value_sold,
+    ROUND((100.0 * cs.tickets_sold) / vc.total_seats, 2) AS pct_venue_sold
+FROM Concert c
+JOIN Venue v ON v.venue_id = c.venue_id
+JOIN concert_sales cs ON cs.concert_id = c.concert_id
+JOIN venue_capacity vc ON vc.venue_id = c.venue_id
+ORDER BY c.start_at;
      concert_name     |      start_at       |  venue_name  | tickets_sold | total_value_sold | pct_venue_sold 
 ----------------------+---------------------+--------------+--------------+------------------+----------------
  City Lights Festival | 2026-05-10 20:00:00 | Harbour Dome |           55 |          5475.00 |          91.67
@@ -36,10 +315,22 @@ SET
  Jazz in Spring       | 2026-05-16 19:00:00 | Pine Theatre |            5 |           450.00 |          50.00
 (4 rows)
 
+\echo
 
+\echo  -------------------- Query 2: ----------------------------------- 
 -------------------- Query 2: -----------------------------------
+\echo
 
+\i q2.sql
+SET search_path TO TicketSchema;
 SET
+SELECT
+    o.owner_name,
+    COUNT(v.venue_id) AS venue_count
+FROM Owner o
+LEFT JOIN Venue v ON v.owner_id = o.owner_id
+GROUP BY o.owner_id, o.owner_name
+ORDER BY venue_count DESC, o.owner_name;
          owner_name         | venue_count 
 ----------------------------+-------------
  Aurora Entertainment Group |           3
@@ -50,10 +341,27 @@ SET
  North Stage Holdings       |           1
 (6 rows)
 
+\echo
 
+\echo  -------------------- Query 3: ----------------------------------- 
 -------------------- Query 3: -----------------------------------
+\echo
 
+\i q3.sql
+SET search_path TO TicketSchema;
 SET
+SELECT
+    v.venue_name,
+    COUNT(s.seat_id) AS seat_count,
+    ROUND(
+        100.0 * AVG(CASE WHEN s.is_accessible THEN 1.0 ELSE 0.0 END),
+        2
+    ) AS pct_accessible
+FROM Venue v
+JOIN Section sec ON sec.venue_id = v.venue_id
+JOIN Seat s ON s.section_id = sec.section_id
+GROUP BY v.venue_id, v.venue_name
+ORDER BY v.venue_name;
      venue_name      | seat_count | pct_accessible 
 ---------------------+------------+----------------
  Canal Concert Hall  |         10 |          20.00
@@ -68,10 +376,32 @@ SET
  Summit Live House   |         10 |          20.00
 (10 rows)
 
+\echo
 
+\echo  -------------------- Query 4: ----------------------------------- 
 -------------------- Query 4: -----------------------------------
+\echo
 
+\i q4.sql
+SET search_path TO TicketSchema;
 SET
+WITH user_ticket_counts AS (
+    SELECT
+        u.username,
+        COUNT(t.ticket_id) AS ticket_count
+    FROM AppUser u
+    JOIN Purchase p ON p.user_id = u.user_id
+    JOIN Ticket t ON t.purchase_id = p.purchase_id
+    GROUP BY u.user_id, u.username
+)
+SELECT
+    utc.username,
+    utc.ticket_count
+FROM user_ticket_counts utc
+WHERE utc.ticket_count = (
+    SELECT MAX(ticket_count) FROM user_ticket_counts
+)
+ORDER BY utc.username;
   username  | ticket_count 
 ------------+--------------
  powerbuyer |           35
