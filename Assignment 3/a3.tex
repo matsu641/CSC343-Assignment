@@ -249,76 +249,34 @@ $\{B \to C,\; C \to A,\; C \to B,\; C \to D,\; CF \to E,\;
 \bigskip
 \textbf{Step 3: Remove redundant FDs.}
 
+Number the FDs after Step 2:
+(1) $B \to C$,
+(2) $C \to A$,
+(3) $C \to B$,
+(4) $C \to D$,
+(5) $CF \to E$,
+(6) $E \to B$,
+(7) $BF \to E$,
+(8) $B \to A$,
+(9) $B \to D$.
+
 Remove each FD one at a time; compute closure of its LHS using the
 \emph{remaining} FDs. Once an FD is discarded, it stays removed.
 
-\begin{center}
-\begin{tabular}{|c|l|p{6.8cm}|l|}
+\begin{tabular}{l|l|l|l}
+   & Exclude these from Step 2 &             &          \\
+FD & when computing closure     & Closure     & Decision \\
 \hline
-\# & FD & LHS closure \emph{without} this FD & Decision \\
-\hline
-1 & $B \to C$
-& $B^+ = \{B\}
-   \xrightarrow{B \to D} \{B,D\}
-   \xrightarrow{B \to A} \{A,B,D\}$.
-  $C \notin B^+$.
-& keep \\
-\hline
-2 & $C \to A$
-& $C^+ = \{C\}
-   \xrightarrow{C \to B} \{B,C\}
-   \xrightarrow{B \to A} \{A,B,C\}$.
-  $A \in C^+$.
-& \textbf{discard} \\
-\hline
-3 & $C \to D$
-& (after discarding $C \to A$)
-  $C^+ = \{C\}
-   \xrightarrow{C \to B} \{B,C\}
-   \xrightarrow{B \to D} \{B,C,D\}$.
-  $D \in C^+$.
-& \textbf{discard} \\
-\hline
-4 & $CF \to E$
-& (after discarding $C \to A$, $C \to D$)
-  $(CF)^+ = \{C,F\}
-   \xrightarrow{C \to B} \{B,C,F\}
-   \xrightarrow{BF \to E} \{B,C,E,F\}$.
-  $E \in (CF)^+$.
-& \textbf{discard} \\
-\hline
-5 & $C \to B$
-& $C^+ = \{C\}$. No FD fires. $B \notin C^+$.
-& keep \\
-\hline
-6 & $E \to B$
-& $E^+ = \{E\}$. No FD fires. $B \notin E^+$.
-& keep \\
-\hline
-7 & $BF \to E$
-& $(BF)^+ = \{B,F\}
-   \xrightarrow{B \to C} \{B,C,F\}
-   \xrightarrow{B \to D} \{B,C,D,F\}
-   \xrightarrow{B \to A} \{A,B,C,D,F\}$.
-  $E \notin (BF)^+$.
-& keep \\
-\hline
-8 & $B \to A$
-& $B^+ = \{B\}
-   \xrightarrow{B \to C} \{B,C\}
-   \xrightarrow{B \to D} \{B,C,D\}$.
-  $A \notin B^+$.
-& keep \\
-\hline
-9 & $B \to D$
-& $B^+ = \{B\}
-   \xrightarrow{B \to C} \{B,C\}
-   \xrightarrow{B \to A} \{A,B,C\}$.
-  $D \notin B^+$.
-& keep \\
-\hline
+1 & 1 & $B^+ = \{A,B,D\}$. $C \notin B^+$. & keep \\
+2 & 2 & $C^+ = \{A,B,C\}$. $A \in C^+$. & \textbf{discard} \\
+3 & 2, 3 & $C^+ = \{C\}$. $B \notin C^+$. & keep \\
+4 & 2, 4 & $C^+ = \{B,C,D\}$. $D \in C^+$. & \textbf{discard} \\
+5 & 2, 4, 5 & $(CF)^+ = \{B,C,E,F\}$. $E \in (CF)^+$. & \textbf{discard} \\
+6 & 2, 4, 5, 6 & $E^+ = \{E\}$. $B \notin E^+$. & keep \\
+7 & 2, 4, 5, 7 & $(BF)^+ = \{A,B,C,D,F\}$. $E \notin (BF)^+$. & keep \\
+8 & 2, 4, 5, 8 & $B^+ = \{B,C,D\}$. $A \notin B^+$. & keep \\
+9 & 2, 4, 5, 9 & $B^+ = \{A,B,C\}$. $D \notin B^+$. & keep \\
 \end{tabular}
-\end{center}
 
 \textbf{Minimal basis} (in alphabetical order):
 \[
