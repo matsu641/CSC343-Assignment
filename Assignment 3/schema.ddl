@@ -3,6 +3,8 @@
 --    Ticket.concert_id without assertions or triggers.
 -- 2) Enforce that ConcertSectionPrice.section_id must belong to the same venue
 --    as ConcertSectionPrice.concert_id without assertions or triggers.
+-- 3) Enforce that every venue has at least 10 seats without assertions or
+--    triggers.
 --
 -- Did not:
 -- None.
