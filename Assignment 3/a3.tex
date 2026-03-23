@@ -1,159 +1,442 @@
 \documentclass[11pt]{article}
-\usepackage[margin=1in]{geometry}
+\usepackage[margin=0.8in]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{wasysym}
+\usepackage{array}
+\setlength{\parskip}{6pt}
 \begin{document}
 
 \begin{center}
 {\Large CSC343 Assignment 3 -- Part 2 Solutions}
 \end{center}
 
-\section*{1. Relation $R_1(L,M,N,O,P,Q,R,S)$, $S_1$}
-Given:
+%========================================================================
+\section*{1. Relation $R_1(L,M,N,O,P,Q,R,S)$}
+Given FDs:
 \[
 S_1 = \{L \to NQ,\; MNR \to O,\; O \to M,\; NQ \to LS,\; S \to OPR\}
 \]
 
+%------------------------------------------------------------------------
 \subsection*{(a) BCNF violations}
-A dependency violates BCNF if its LHS is not a superkey in $R_1$.
 
-Key observations:
+An FD $X \to Y$ violates BCNF iff $X$ is not a superkey of $R_1$.
+We compute the closure of each LHS in $S_1$:
 \begin{itemize}
-\item $L^+ = LMNOPQRS$, so $L$ is a superkey.
-\item $(NQ)^+ = LMNOPQRS$, so $NQ$ is a superkey.
-\item $O^+ = OM$ (not a superkey), $S^+ = SMOPR$ (not a superkey),
-and $(MNR)^+ = MNRO$ (not a superkey).
+\item $L^+ = \{L\}
+  \xrightarrow{L \to NQ} \{L,N,Q\}
+  \xrightarrow{NQ \to LS} \{L,N,Q,S\}
+  \xrightarrow{S \to OPR} \{L,N,O,P,Q,R,S\}$\\
+  $\xrightarrow{O \to M} \{L,M,N,O,P,Q,R,S\}$.
+  $L$ is a superkey.
+\item $(NQ)^+ = \{N,Q\}
+  \xrightarrow{NQ \to LS} \{L,N,Q,S\}
+  \xrightarrow{S \to OPR} \{L,N,O,P,Q,R,S\}$\\
+  $\xrightarrow{O \to M} \{L,M,N,O,P,Q,R,S\}$.
+  $NQ$ is a superkey.
+\item $(MNR)^+ = \{M,N,R\}
+  \xrightarrow{MNR \to O} \{M,N,O,R\}
+  \xrightarrow{O \to M} \{M,N,O,R\}$.
+  Not a superkey.
+\item $O^+ = \{O\}
+  \xrightarrow{O \to M} \{M,O\}$.
+  Not a superkey.
+\item $S^+ = \{S\}
+  \xrightarrow{S \to OPR} \{O,P,R,S\}
+  \xrightarrow{O \to M} \{M,O,P,R,S\}$.
+  Not a superkey.
 \end{itemize}
 
-Therefore, BCNF-violating FDs are:
+BCNF-violating FDs (LHS is not a superkey):
 \[
 MNR \to O,\quad O \to M,\quad S \to OPR.
 \]
 
+%------------------------------------------------------------------------
 \subsection*{(b) BCNF decomposition}
-Start with $R_1(LMNOPQRS)$.
 
-Use violating FD $O \to M$:
-\[
-R_{11}(OM),\quad R_{12}(LNOPQRS).
-\]
+\textbf{Step 1.} Start with $R_1(LMNOPQRS)$.
+Choose violating FD $O \to M$ (where $O^+ = \{M,O\}$).
+\begin{itemize}
+\item $R_{11}(MO)$ \quad (attributes in $O^+$)
+\item $R_{12}(LNOPQRS)$ \quad ($R_1$ attributes minus $M$, keeping $O$)
+\end{itemize}
 
-In $R_{12}$, projected FD $S \to OPR$ still violates BCNF.
-Decompose $R_{12}$ by $S \to OPR$:
-\[
-R_{121}(OPRS),\quad R_{122}(LNQS).
-\]
+Projected FDs on $R_{12}(LNOPQRS)$:
+$\{L \to NQ,\; NQ \to LS,\; S \to OPR\}$.
 
-Final BCNF decomposition (relations listed in alphabetical attribute order):
+($MNR \to O$ and $O \to M$ cannot project onto $R_{12}$ since $M \notin R_{12}$.)
+
+Check BCNF in $R_{12}$: $L$ and $NQ$ are still superkeys (same closures
+as before, restricted to $R_{12}$). But
+$S^+ = \{S\} \to \{O,P,R,S\}$, so $S$ is not a superkey.
+Thus $S \to OPR$ violates BCNF in $R_{12}$.
+
+\medskip
+\textbf{Step 2.} Decompose $R_{12}$ using $S \to OPR$
+(where $S^+$ restricted to $R_{12}$ is $\{O,P,R,S\}$):
+\begin{itemize}
+\item $R_{121}(OPRS)$
+\item $R_{122}(LNQS)$
+\end{itemize}
+
+Verify each final relation is in BCNF:
+\begin{itemize}
+\item $R_A(LNQS)$: $L^+ = \{L,N,Q,S\} = R_A$ and
+      $(NQ)^+ = \{L,N,Q,S\} = R_A$. Both LHS are superkeys. BCNF.
+\item $R_B(MO)$: $O^+ = \{M,O\} = R_B$. Superkey. BCNF.
+\item $R_C(OPRS)$: $S^+ = \{O,P,R,S\} = R_C$. Superkey. BCNF.
+\end{itemize}
+
+\textbf{Final BCNF decomposition}
+(relations in alphabetical order):
 \[
 R_A(LNQS),\quad R_B(MO),\quad R_C(OPRS).
 \]
 
-Projected FDs on final relations:
+Projected FDs:
 \begin{itemize}
-\item On $R_A(LNQS)$: $L \to NQ$, $NQ \to LS$.
+\item On $R_A(LNQS)$: $L \to NQ,\; NQ \to LS$.
 \item On $R_B(MO)$: $O \to M$.
 \item On $R_C(OPRS)$: $S \to OPR$.
 \end{itemize}
 
+%------------------------------------------------------------------------
 \subsection*{(c) Dependency preservation}
-Not dependency-preserving.
 
-FD $MNR \to O$ is not present in any single final relation, and cannot be
-inferred from the union of projected FDs on $R_A, R_B, R_C$.
-So at least this dependency is lost.
+The union of all projected FDs is:
+$\{L \to NQ,\; NQ \to LS,\; O \to M,\; S \to OPR\}$.
 
+We check whether $MNR \to O$ can be derived from these.
+Compute $(MNR)^+$ under the projected FDs:
+\[
+\{M,N,R\}
+  \;\xrightarrow{\text{no FD fires}}\;
+  \{M,N,R\}.
+\]
+$M$, $N$, and $R$ never appear together in any single decomposed relation,
+so no projected FD has its LHS contained in $\{M,N,R\}$.
+Since $O \notin \{M,N,R\}$, the FD $MNR \to O$ is \textbf{lost}.
+
+The decomposition is \textbf{not dependency-preserving}.
+
+%------------------------------------------------------------------------
 \subsection*{(d) Chase test for lossless join}
-Use decomposition $\{MO, OPRS, LNQS\}$ over attributes $LMNOPQRS$.
-Initialize tableau rows with distinguished symbols $a_L,\dots,a_S$ for
-attributes in each row's relation, and fresh $b$ symbols elsewhere.
 
-Rows (only key entries shown):
-\begin{itemize}
-\item Row for $MO$: $M=a_M, O=a_O$.
-\item Row for $OPRS$: $O=a_O, P=a_P, R=a_R, S=a_S$.
-\item Row for $LNQS$: $L=a_L, N=a_N, Q=a_Q, S=a_S$.
-\end{itemize}
+Decomposition: $\{R_B(MO),\; R_C(OPRS),\; R_A(LNQS)\}$.
 
-Apply FDs:
-\begin{itemize}
-\item $S \to OPR$: from $S=a_S$ in row $LNQS$, force $O=a_O, P=a_P, R=a_R$.
-\item $O \to M$: now row $LNQS$ has $O=a_O$, force $M=a_M$.
-\item $L \to NQ$ and $NQ \to LS$ are already satisfied in row $LNQS$.
-\end{itemize}
+Assign a lowercase letter to each attribute
+($l, m, n, o, p, q, r, s$ for $L, M, N, O, P, Q, R, S$).
+Each row gets letters for the attributes in its relation and
+arbitrary numbers elsewhere.
 
-After chasing, row $LNQS$ contains distinguished $a$ symbols for all
-attributes $L,M,N,O,P,Q,R,S$. Therefore the join is lossless.
+\medskip
+\textbf{Initial tableau:}
 
-\section*{2. Relation $R_2(A,B,C,D,E,F,G,H)$, $S_2$}
-Given:
+\begin{center}
+\begin{tabular}{|l|c c c c c c c c|}
+\hline
+       & $L$ & $M$ & $N$ & $O$ & $P$ & $Q$ & $R$ & $S$ \\
+\hline
+$MO$   & 1   & $m$ & 2   & $o$ & 3   & 4   & 5   & 6   \\
+$OPRS$ & 7   & 8   & 9   & $o$ & $p$ & 10  & $r$ & $s$ \\
+$LNQS$ & $l$ & 11  & $n$ & 12  & 13  & $q$ & 14  & $s$ \\
+\hline
+\end{tabular}
+\end{center}
+
+\textbf{Apply $S \to OPR$:}
+Rows $OPRS$ and $LNQS$ agree on $S = s$, so $O, P, R$ must match.
+Copy from $OPRS$: in row $LNQS$, replace $12 \to o$,
+$13 \to p$, $14 \to r$.
+
+\begin{center}
+\begin{tabular}{|l|c c c c c c c c|}
+\hline
+       & $L$ & $M$ & $N$ & $O$          & $P$          & $Q$
+       & $R$          & $S$ \\
+\hline
+$MO$   & 1   & $m$ & 2   & $o$          & 3            & 4
+       & 5            & 6   \\
+$OPRS$ & 7   & 8   & 9   & $o$          & $p$          & 10
+       & $r$          & $s$ \\
+$LNQS$ & $l$ & 11  & $n$ & $\mathbf{o}$ & $\mathbf{p}$ & $q$
+       & $\mathbf{r}$ & $s$ \\
+\hline
+\end{tabular}
+\end{center}
+
+\textbf{Apply $O \to M$:}
+All three rows agree on $O = o$, so $M$ must match.
+Copy from $MO$: in row $OPRS$, replace $8 \to m$;
+in row $LNQS$, replace $11 \to m$.
+
+\begin{center}
+\begin{tabular}{|l|c c c c c c c c|}
+\hline
+       & $L$ & $M$          & $N$ & $O$ & $P$ & $Q$ & $R$ & $S$ \\
+\hline
+$MO$   & 1   & $m$          & 2   & $o$ & 3   & 4   & 5   & 6   \\
+$OPRS$ & 7   & $\mathbf{m}$ & 9   & $o$ & $p$ & 10  & $r$ & $s$ \\
+$LNQS$ & $l$ & $\mathbf{m}$ & $n$ & $o$ & $p$ & $q$ & $r$ & $s$ \\
+\hline
+\end{tabular}
+\end{center}
+
+Row $LNQS$ now has a letter for every attribute:
+$l, m, n, o, p, q, r, s$.
+No further FD applications produce new changes.
+
+Chase test \textbf{passed}. The decomposition is \textbf{lossless}.
+
+\newpage
+%========================================================================
+\section*{2. Relation $R_2(A,B,C,D,E,F,G,H)$}
+Given FDs:
 \[
-S_2 = \{AB \to C,\; C \to ABD,\; CFD \to E,\; E \to B,\; BF \to EC,\; B \to DA\}
+S_2 = \{AB \to C,\; C \to ABD,\; CFD \to E,\;
+        E \to B,\; BF \to EC,\; B \to DA\}
 \]
 
+%------------------------------------------------------------------------
 \subsection*{(a) Minimal basis}
-Split RHS and simplify:
-\begin{itemize}
-\item $AB \to C$ reduces to $B \to C$ (since $B \to A$).
-\item $C \to A, C \to D$ are redundant given $C \to B$ and $B \to A, B \to D$.
-\item $BF \to C$ is redundant given $B \to C$.
-\item $CFD \to E$ is redundant since $C \to B$ and then $BF \to E$.
-\end{itemize}
 
-One minimal basis in alphabetical order:
+\textbf{Step 1: Split RHS} into single-attribute FDs.
 \[
-\{B \to A,\; B \to C,\; B \to D,\; BF \to E,\; C \to B,\; E \to B\}.
+\{\;AB \to C,\;
+C \to A,\; C \to B,\; C \to D,\;
+CDF \to E,\;
+E \to B,\;
+BF \to C,\; BF \to E,\;
+B \to A,\; B \to D
+\;\}
 \]
 
+\bigskip
+\textbf{Step 2: Remove extraneous LHS attributes.}
+
+Only FDs with $|\text{LHS}| > 1$: $AB \to C$, $CDF \to E$,
+$BF \to C$, $BF \to E$.
+\begin{itemize}
+\item $AB \to C$: try removing $A$.
+  $B^+ = \{B\}
+   \xrightarrow{B \to D} \{B,D\}
+   \xrightarrow{B \to A} \{A,B,D\}
+   \xrightarrow{AB \to C} \{A,B,C,D\}$.
+  $C \in B^+$, so $A$ is extraneous. Replace with $B \to C$.
+\item $CDF \to E$: try removing $C$.
+  $(DF)^+ = \{D,F\}$. $E \notin$. Keep $C$.\\
+  Try removing $D$.
+  $(CF)^+ = \{C,F\}
+   \xrightarrow{C \to B} \{B,C,F\}
+   \xrightarrow{B \to D} \{B,C,D,F\}
+   \xrightarrow{BF \to E} \{B,C,D,E,F\}$.
+  $E \in (CF)^+$, so $D$ is extraneous. Replace with $CF \to E$.\\
+  Re-check $CF \to E$: $F^+ = \{F\}$, $E \notin$; keep $C$.
+  $C^+ = \{C\} \to \{B,C\} \to \{A,B,C,D\}$, $E \notin$; keep $F$.
+\item $BF \to C$: try removing $F$.
+  $B^+ = \{B\} \xrightarrow{B \to C} \{B,C\}$.
+  $C \in B^+$, so $F$ is extraneous. This gives duplicate $B \to C$;
+  remove this FD.
+\item $BF \to E$: $F^+ = \{F\}$, $E \notin$; keep $B$.
+  $B^+ = \{B\} \to \{B,C\} \to \{A,B,C,D\}$, $E \notin$; keep $F$.
+\end{itemize}
+
+After Step 2:
+$\{B \to C,\; C \to A,\; C \to B,\; C \to D,\; CF \to E,\;
+  E \to B,\; BF \to E,\; B \to A,\; B \to D\}$
+
+\bigskip
+\textbf{Step 3: Remove redundant FDs.}
+
+Remove each FD one at a time; compute closure of its LHS using the
+\emph{remaining} FDs. Once an FD is discarded, it stays removed.
+
+\begin{center}
+\begin{tabular}{|c|l|p{6.8cm}|l|}
+\hline
+\# & FD & LHS closure \emph{without} this FD & Decision \\
+\hline
+1 & $B \to C$
+& $B^+ = \{B\}
+   \xrightarrow{B \to D} \{B,D\}
+   \xrightarrow{B \to A} \{A,B,D\}$.
+  $C \notin B^+$.
+& keep \\
+\hline
+2 & $C \to A$
+& $C^+ = \{C\}
+   \xrightarrow{C \to B} \{B,C\}
+   \xrightarrow{B \to A} \{A,B,C\}$.
+  $A \in C^+$.
+& \textbf{discard} \\
+\hline
+3 & $C \to D$
+& (after discarding $C \to A$)
+  $C^+ = \{C\}
+   \xrightarrow{C \to B} \{B,C\}
+   \xrightarrow{B \to D} \{B,C,D\}$.
+  $D \in C^+$.
+& \textbf{discard} \\
+\hline
+4 & $CF \to E$
+& (after discarding $C \to A$, $C \to D$)
+  $(CF)^+ = \{C,F\}
+   \xrightarrow{C \to B} \{B,C,F\}
+   \xrightarrow{BF \to E} \{B,C,E,F\}$.
+  $E \in (CF)^+$.
+& \textbf{discard} \\
+\hline
+5 & $C \to B$
+& $C^+ = \{C\}$. No FD fires. $B \notin C^+$.
+& keep \\
+\hline
+6 & $E \to B$
+& $E^+ = \{E\}$. No FD fires. $B \notin E^+$.
+& keep \\
+\hline
+7 & $BF \to E$
+& $(BF)^+ = \{B,F\}
+   \xrightarrow{B \to C} \{B,C,F\}
+   \xrightarrow{B \to D} \{B,C,D,F\}
+   \xrightarrow{B \to A} \{A,B,C,D,F\}$.
+  $E \notin (BF)^+$.
+& keep \\
+\hline
+8 & $B \to A$
+& $B^+ = \{B\}
+   \xrightarrow{B \to C} \{B,C\}
+   \xrightarrow{B \to D} \{B,C,D\}$.
+  $A \notin B^+$.
+& keep \\
+\hline
+9 & $B \to D$
+& $B^+ = \{B\}
+   \xrightarrow{B \to C} \{B,C\}
+   \xrightarrow{B \to A} \{A,B,C\}$.
+  $D \notin B^+$.
+& keep \\
+\hline
+\end{tabular}
+\end{center}
+
+\textbf{Minimal basis} (in alphabetical order):
+\[
+\boxed{\;B \to A,\quad B \to C,\quad B \to D,\quad
+        BF \to E,\quad C \to B,\quad E \to B\;}
+\]
+
+%------------------------------------------------------------------------
 \subsection*{(b) All keys for $R_2$}
-Attributes not on any RHS are $F,G,H$, so every key must include $FGH$.
-Need one of $B,C,E$ to generate the rest:
-\begin{itemize}
-\item $BFGH^+ = ABCDEFGH$.
-\item $CFGH^+ = ABCDEFGH$ (via $C \to B$).
-\item $EFGH^+ = ABCDEFGH$ (via $E \to B$).
-\end{itemize}
 
-All candidate keys:
+Identify attributes by their LHS/RHS appearances in the minimal basis:
+
+\begin{center}
+\begin{tabular}{|c|c|c|l|}
+\hline
+Attribute & Appears on LHS & Appears on RHS & Conclusion \\
+\hline
+$A$ & --       & \checked & not necessarily in any key \\
+$B$ & \checked & \checked & must check \\
+$C$ & \checked & \checked & must check \\
+$D$ & --       & \checked & not necessarily in any key \\
+$E$ & \checked & \checked & must check \\
+$F$ & \checked & --       & must be in every key \\
+$G$ & --       & --       & must be in every key \\
+$H$ & --       & --       & must be in every key \\
+\hline
+\end{tabular}
+\end{center}
+
+$F, G, H$ must be in every key.
+$(FGH)^+ = \{F,G,H\} \neq R_2$, so we need at least one of $\{B,C,E\}$.
+\begin{itemize}
+\item $(BFGH)^+ = \{B,F,G,H\}
+   \xrightarrow{B \to A} \{A,B,F,G,H\}
+   \xrightarrow{B \to C} \{A,B,C,F,G,H\}
+   \xrightarrow{B \to D} \{A,B,C,D,F,G,H\}
+   \xrightarrow{BF \to E} \{A,B,C,D,E,F,G,H\}$. Key.
+\item $(CFGH)^+ = \{C,F,G,H\}
+   \xrightarrow{C \to B} \{B,C,F,G,H\}
+   \xrightarrow{B \to A} \{A,B,C,F,G,H\}
+   \xrightarrow{B \to D} \{A,B,C,D,F,G,H\}
+   \xrightarrow{BF \to E} \{A,B,C,D,E,F,G,H\}$. Key.
+\item $(EFGH)^+ = \{E,F,G,H\}
+   \xrightarrow{E \to B} \{B,E,F,G,H\}
+   \xrightarrow{B \to A} \{A,B,E,F,G,H\}
+   \xrightarrow{B \to C} \{A,B,C,E,F,G,H\}
+   \xrightarrow{B \to D} \{A,B,C,D,E,F,G,H\}$. Key.
+\end{itemize}
+$A, D$ are not on any LHS, so $AFGH$ and $DFGH$ cannot be keys.
+Each of $BFGH$, $CFGH$, $EFGH$ is minimal since $FGH$ alone is not
+a superkey. All candidate keys:
 \[
-\{BFGH,\; CFGH,\; EFGH\}.
+\boxed{\;BFGH,\quad CFGH,\quad EFGH\;}
 \]
 
+%------------------------------------------------------------------------
 \subsection*{(c) 3NF synthesis}
-From minimal basis, combine same LHS:
+
+From the minimal basis, combine FDs with the same LHS:
 \[
 B \to ACD,\quad BF \to E,\quad C \to B,\quad E \to B.
 \]
 
-Create relations:
+Create one relation per group (LHS $\cup$ RHS):
 \begin{itemize}
-\item From $B \to ACD$: $R_1(ABCD)$.
-\item From $BF \to E$: $R_2(BEF)$.
-\item From $C \to B$: $R_3(BC)$.
-\item From $E \to B$: $R_4(BE)$.
+\item From $B \to ACD$: $R_1(ABCD)$, key $B$.
+\item From $BF \to E$: $R_2(BEF)$, key $BF$.
+\item From $C \to B$: $R_3(BC)$, key $C$.
+\item From $E \to B$: $R_4(BE)$, key $E$.
 \end{itemize}
 
 Remove subset relations:
 \begin{itemize}
-\item $R_3(BC) \subseteq R_1(ABCD)$, remove $R_3$.
-\item $R_4(BE) \subseteq R_2(BEF)$, remove $R_4$.
+\item $R_3(BC) \subseteq R_1(ABCD)$: $\{B,C\} \subset \{A,B,C,D\}$.
+      Remove $R_3$.
+\item $R_4(BE) \subseteq R_2(BEF)$: $\{B,E\} \subset \{B,E,F\}$.
+      Remove $R_4$.
 \end{itemize}
 
-No remaining relation contains a key for $R_2$, so add one key relation,
-for example $R_5(BFGH)$.
+Check if any remaining relation contains a candidate key for $R_2$:
+\begin{itemize}
+\item $R_1(ABCD)$: does not contain $F, G, H$. No.
+\item $R_2(BEF)$: does not contain $G, H$. No.
+\end{itemize}
 
-Final 3NF decomposition (alphabetical by attribute list):
+Neither contains a key, so add a key relation: $R_5(BFGH)$.
+
+\medskip
+\textbf{Final 3NF decomposition} (alphabetical):
 \[
-R_1(ABCD),\quad R_2(BEF),\quad R_3(BFGH).
+\boxed{\;R_1(ABCD),\quad R_2(BEF),\quad R_3(BFGH)\;}
 \]
 
-This decomposition is dependency-preserving (by synthesis construction) and
-lossless (contains a key relation $BFGH$).
+\begin{itemize}
+\item \textbf{Dependency-preserving}: by construction, every FD in the
+      minimal basis is contained within some relation.
+      $B \to ACD$ in $R_1$; $BF \to E$ in $R_2$;
+      $C \to B$ in $R_1$ ($C, B \in ABCD$);
+      $E \to B$ in $R_2$ ($E, B \in BEF$).
+\item \textbf{Lossless}: $R_3(BFGH)$ contains candidate key $BFGH$.
+\end{itemize}
 
+%------------------------------------------------------------------------
 \subsection*{(d) Redundancy}
+
 Yes, redundancy is possible.
 
-The relation $R_2(BEF)$ is in 3NF but not BCNF due to projected dependency
-$E \to B$ where $E$ is not a superkey in $R_2(BEF)$. This can repeat the same
-$B$ value across multiple tuples with the same $E$ and different $F$.
-So redundancy can occur.
+Consider $R_2(BEF)$. Its projected FDs are $BF \to E$ and $E \to B$.
+The keys of $R_2$ are $BF$ and $EF$ (since $(EF)^+ = \{E,F\}
+\xrightarrow{E \to B} \{B,E,F\} = R_2$).
+
+The FD $E \to B$ violates BCNF in $R_2$ because $E$ is not a superkey
+($(E)^+ = \{B,E\} \neq R_2$). Although $B$ is a prime attribute
+(so 3NF is not violated), the BCNF violation means redundancy can occur.
+
+Concrete example: if $e_1$ determines $b_1$, then tuples
+$(b_1, e_1, f_1)$ and $(b_1, e_1, f_2)$ repeat the fact
+``$E = e_1 \Rightarrow B = b_1$'' redundantly.
+This also creates the risk of update anomalies.
 
 \end{document}
